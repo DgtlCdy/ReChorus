@@ -138,12 +138,12 @@ class BaseModel(nn.Module):
 				if isinstance(feed_dicts[0][key], np.ndarray):
 					tmp_list = [len(d[key]) for d in feed_dicts]
 					if any([tmp_list[0] != l for l in tmp_list]):
-						stack_val = np.array([d[key] for d in feed_dicts], dtype=np.object)
+						stack_val = np.array([d[key] for d in feed_dicts], dtype=np.object_)
 					else:
 						stack_val = np.array([d[key] for d in feed_dicts])
 				else:
 					stack_val = np.array([d[key] for d in feed_dicts])
-				if stack_val.dtype == np.object:  # inconsistent length (e.g., history)
+				if stack_val.dtype == np.object_:  # inconsistent length (e.g., history)
 					feed_dict[key] = pad_sequence([torch.from_numpy(x) for x in stack_val], batch_first=True)
 				else:
 					feed_dict[key] = torch.from_numpy(stack_val)

@@ -66,7 +66,7 @@ class SASRecBase(object):
 		his_vectors = his_vectors + pos_vectors
 
 		# Self-attention
-		causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int))
+		causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32))
 		attn_mask = torch.from_numpy(causality_mask).to(self.device)
 		# attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
 		for block in self.transformer_block:

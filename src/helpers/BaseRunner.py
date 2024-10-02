@@ -177,7 +177,7 @@ class BaseRunner(object):
 			model.optimizer = self._build_optimizer(model)
 		dataset.actions_before_epoch()  # must sample before multi thread start
 
-		model.train()
+		model.train() # 打开训练模式
 		loss_lst = list()
 		dl = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers,
 						collate_fn=dataset.collate_batch, pin_memory=self.pin_memory)
