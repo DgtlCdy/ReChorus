@@ -54,7 +54,7 @@ def main():
 		args.device = torch.device('cuda')
 	logging.info('Device: {}'.format(args.device))
 
-	# Read data
+	# Read data，corpus就是一个Reader类的对象
 	corpus_path = os.path.join(args.path, args.dataset, model_name.reader+args.data_appendix+ '.pkl')
 	if not args.regenerate and os.path.exists(corpus_path):
 		logging.info('Load corpus from {}'.format(corpus_path))
@@ -76,7 +76,7 @@ def main():
 		data_dict[phase].prepare()
 
 	# Run model
-	runner = runner_name(args)
+	runner = runner_name(args, model)
 	logging.info('Test Before Training: ' + runner.print_res(data_dict['test']))
 	if args.load > 0:
 		model.load_model()
@@ -161,7 +161,7 @@ if __name__ == '__main__':
                   					for rerankers to select "General" or "Sequential" Baseranker.')
 	init_args, init_extras = init_parser.parse_known_args()
 	
-	# 获取模型和对应的reader、runner，这几个name指代类的名字
+	# 根据模型名获取模型和对应的reader、runner，这几个name指代类本身
 	model_name = eval('{0}.{0}{1}'.format(init_args.model_name,init_args.model_mode))
 	reader_name = eval('{0}.{0}'.format(model_name.reader))  # model chooses the reader
 	runner_name = eval('{0}.{0}'.format(model_name.runner))  # model chooses the runner
