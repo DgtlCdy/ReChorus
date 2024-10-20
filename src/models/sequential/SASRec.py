@@ -52,7 +52,7 @@ class SASRecBase(object):
 		self.check_list = []
 		i_ids = feed_dict['item_id']  # [batch_size, -1]
 		history = feed_dict['history_items']  # [batch_size, history_max]
-		lengths = feed_dict['lengths']  # [batch_size]
+		lengths = feed_dict['lengths']  # [batch_size] # 每一个用户序列的长度，取值1-20
 		batch_size, seq_len = history.shape
 
 		valid_his = (history > 0).long()
@@ -66,23 +66,28 @@ class SASRecBase(object):
 		his_vectors = his_vectors + pos_vectors
 
 		# Self-attention
-		causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int))
+		causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系
 		attn_mask = torch.from_numpy(causality_mask).to(self.device)
 		# attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
 		for block in self.transformer_block:
-			his_vectors = block(his_vectors, attn_mask)
+			his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
 		his_vectors = his_vectors * valid_his[:, :, None].float()
 
-		his_vector = his_vectors[torch.arange(batch_size), lengths - 1, :]
+		# 只取最后一个item的embedding作为本次训练的预测embedding
+		his_vector = his_vectors[torch.arange(batch_size), lengths - 1, :] # 为什么不直接用冒号？
 		# his_vector = his_vectors.sum(1) / lengths[:, None].float()
 		# ↑ average pooling is shown to be more effective than the most recent embedding
 
-		i_vectors = self.i_embeddings(i_ids)
-		prediction = (his_vector[:, None, :] * i_vectors).sum(-1)
+		i_vectors = self.i_embeddings(i_ids) # 获取阳性item和阴性item的embedding
+		prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
 
 		u_v = his_vector.repeat(1,i_ids.shape[1]).view(i_ids.shape[0],i_ids.shape[1],-1)
 		i_v = i_vectors
 
+		# 返回一个字典。
+		# prediction是预测的内积，训练时返回对两个指定item的内积，测试时返回100个item的id？
+		# u_v是预测的embedding
+		# i_v是阳性和阴性的embedding
 		return {'prediction': prediction.view(batch_size, -1), 'u_v': u_v, 'i_v':i_v}
 
 

@@ -97,7 +97,16 @@ class BaseModel(nn.Module):
 	"""
 	class Dataset(BaseDataset):
 		def __init__(self, model, corpus, phase: str):
-			self.model = model  # model object reference
+			# 从DataLoader获取batch数据时，DataLoader.Dataset.model会把参数清楚为0从而影响求梯度。
+			# 因此Dataset中不存放model的引用，仅传入一些必要的参数，将model放在Runner里面保证正常运行。
+			# 此前对model深拷贝也有问题，所以只传入一些基本的超参数进来。
+			# self.model = model  # model object reference
+			import copy
+			self.history_max = copy.deepcopy(model.history_max)
+			self.buffer = copy.deepcopy(model.buffer)
+			self.num_neg = copy.deepcopy(model.num_neg)
+			self.test_all = copy.deepcopy(model.test_all)
+
 			self.corpus = corpus  # reader object reference
 			self.phase = phase  # train / dev / test
 
@@ -113,7 +122,7 @@ class BaseModel(nn.Module):
 			return len(self.data)
 
 		def __getitem__(self, index: int) -> dict:
-			if self.model.buffer and self.phase != 'train':
+			if self.buffer and self.phase != 'train':
 				return self.buffer_dict[index]
 			return self._get_feed_dict(index)
 
@@ -123,7 +132,7 @@ class BaseModel(nn.Module):
 
 		# Called after initialization
 		def prepare(self):
-			if self.model.buffer and self.phase != 'train':
+			if self.buffer and self.phase != 'train':
 				for i in tqdm(range(len(self)), leave=False, desc=('Prepare ' + self.phase)):
 					self.buffer_dict[i] = self._get_feed_dict(i)
 
@@ -138,12 +147,12 @@ class BaseModel(nn.Module):
 				if isinstance(feed_dicts[0][key], np.ndarray):
 					tmp_list = [len(d[key]) for d in feed_dicts]
 					if any([tmp_list[0] != l for l in tmp_list]):
-						stack_val = np.array([d[key] for d in feed_dicts], dtype=np.object)
+						stack_val = np.array([d[key] for d in feed_dicts], dtype=np.object_)
 					else:
 						stack_val = np.array([d[key] for d in feed_dicts])
 				else:
 					stack_val = np.array([d[key] for d in feed_dicts])
-				if stack_val.dtype == np.object:  # inconsistent length (e.g., history)
+				if stack_val.dtype == np.object_:  # inconsistent length (e.g., history)
 					feed_dict[key] = pad_sequence([torch.from_numpy(x) for x in stack_val], batch_first=True)
 				else:
 					feed_dict[key] = torch.from_numpy(stack_val)
@@ -191,7 +200,7 @@ class GeneralModel(BaseModel):
 	class Dataset(BaseModel.Dataset):
 		def _get_feed_dict(self, index):
 			user_id, target_item = self.data['user_id'][index], self.data['item_id'][index]
-			if self.phase != 'train' and self.model.test_all:
+			if self.phase != 'train' and self.test_all:
 				neg_items = np.arange(1, self.corpus.n_items)
 			else:
 				neg_items = self.data['neg_items'][index]
@@ -204,11 +213,11 @@ class GeneralModel(BaseModel):
 
 		# Sample negative items for all the instances
 		def actions_before_epoch(self):
-			neg_items = np.random.randint(1, self.corpus.n_items, size=(len(self), self.model.num_neg))
+			neg_items = np.random.randint(1, self.corpus.n_items, size=(len(self), self.num_neg))
 			for i, u in enumerate(self.data['user_id']):
 				clicked_set = self.corpus.train_clicked_set[u]  # neg items are possible to appear in dev/test set
 				# clicked_set = self.corpus.clicked_set[u]  # neg items will not include dev/test set
-				for j in range(self.model.num_neg):
+				for j in range(self.num_neg):
 					while neg_items[i][j] in clicked_set:
 						neg_items[i][j] = np.random.randint(1, self.corpus.n_items)
 			self.data['neg_items'] = neg_items
@@ -237,8 +246,8 @@ class SequentialModel(GeneralModel):
 			feed_dict = super()._get_feed_dict(index)
 			pos = self.data['position'][index]
 			user_seq = self.corpus.user_his[feed_dict['user_id']][:pos]
-			if self.model.history_max > 0:
-				user_seq = user_seq[-self.model.history_max:]
+			if self.history_max > 0:
+				user_seq = user_seq[-self.history_max:]
 			feed_dict['history_items'] = np.array([x[0] for x in user_seq])
 			feed_dict['history_times'] = np.array([x[1] for x in user_seq])
 			feed_dict['lengths'] = len(feed_dict['history_items'])

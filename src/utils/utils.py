@@ -62,9 +62,9 @@ def format_metric(result_dict: Dict[str, Any]) -> str:
 		for metric in np.sort(metrics):
 			name = '{}@{}'.format(metric, topk)
 			m = result_dict[name] if topk != 'All' else result_dict[metric]
-			if type(m) is float or type(m) is np.float or type(m) is np.float32 or type(m) is np.float64:
+			if type(m) is float or type(m) is np.float64 or type(m) is np.float32 or type(m) is np.float64:
 				format_str.append('{}:{:<.4f}'.format(name, m))
-			elif type(m) is int or type(m) is np.int or type(m) is np.int32 or type(m) is np.int64:
+			elif type(m) is int or type(m) is np.int32 or type(m) is np.int32 or type(m) is np.int64:
 				format_str.append('{}:{}'.format(name, m))
 	return ','.join(format_str)
 

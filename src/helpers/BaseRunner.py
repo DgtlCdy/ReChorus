@@ -24,7 +24,7 @@ class BaseRunner(object):
 							help='Check some tensors every check_epoch.')
 		parser.add_argument('--test_epoch', type=int, default=-1,
 							help='Print test results every test_epoch (-1 means no print).')
-		parser.add_argument('--early_stop', type=int, default=10,
+		parser.add_argument('--early_stop', type=int, default=50,
 							help='The number of epochs when dev results drop continuously.')
 		parser.add_argument('--lr', type=float, default=1e-3,
 							help='Learning rate.')
@@ -77,7 +77,8 @@ class BaseRunner(object):
 					raise ValueError('Undefined evaluation metric: {}.'.format(metric))
 		return evaluations
 
-	def __init__(self, args):
+	def __init__(self, args, model):
+		self.model = model  # model object reference
 		self.train_models = args.train
 		self.epoch = args.epoch
 		self.check_epoch = args.check_epoch
@@ -114,7 +115,8 @@ class BaseRunner(object):
 		return optimizer
 
 	def train(self, data_dict: Dict[str, BaseModel.Dataset]):
-		model = data_dict['train'].model
+		# model = data_dict['train'].model # 把model从Dataset转移到runner里面
+		model = self.model
 		main_metric_results, dev_results = list(), list()
 		self._check_time(start=True)
 		try:
@@ -172,12 +174,12 @@ class BaseRunner(object):
 		model.load_model()
 
 	def fit(self, dataset: BaseModel.Dataset, epoch=-1) -> float:
-		model = dataset.model
+		model = self.model
 		if model.optimizer is None:
 			model.optimizer = self._build_optimizer(model)
 		dataset.actions_before_epoch()  # must sample before multi thread start
 
-		model.train()
+		model.train() # 打开训练模式
 		loss_lst = list()
 		dl = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers,
 						collate_fn=dataset.collate_batch, pin_memory=self.pin_memory)
@@ -229,19 +231,21 @@ class BaseRunner(object):
 		Example: ground-truth items: [1, 2], 2 negative items for each instance: [[3,4], [5,6]]
 				 predictions like: [[1,3,4], [2,5,6]]
 		"""
-		dataset.model.eval()
+		self.model.eval()
 		predictions = list()
+		# 测试的时候顺序取样，关闭shuffle
 		dl = DataLoader(dataset, batch_size=self.eval_batch_size, shuffle=False, num_workers=self.num_workers,
 						collate_fn=dataset.collate_batch, pin_memory=self.pin_memory)
 		for batch in tqdm(dl, leave=False, ncols=100, mininterval=1, desc='Predict'):
-			if hasattr(dataset.model,'inference'):
-				prediction = dataset.model.inference(utils.batch_to_gpu(batch, dataset.model.device))['prediction']
+		# 取100个样，其中1个阳性，99个阴性
+			if hasattr(self.model,'inference'):
+				prediction = dataset.model.inference(utils.batch_to_gpu(batch, self.model.device))['prediction']
 			else:
-				prediction = dataset.model(utils.batch_to_gpu(batch, dataset.model.device))['prediction']
+				prediction = self.model(utils.batch_to_gpu(batch, self.model.device))['prediction']
 			predictions.extend(prediction.cpu().data.numpy())
 		predictions = np.array(predictions)
 
-		if dataset.model.test_all:
+		if self.model.test_all:
 			rows, cols = list(), list()
 			for i, u in enumerate(dataset.data['user_id']):
 				clicked_items = list(dataset.corpus.train_clicked_set[u] | dataset.corpus.residual_clicked_set[u])
