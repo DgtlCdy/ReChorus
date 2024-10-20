@@ -24,7 +24,7 @@ class BaseRunner(object):
 							help='Check some tensors every check_epoch.')
 		parser.add_argument('--test_epoch', type=int, default=-1,
 							help='Print test results every test_epoch (-1 means no print).')
-		parser.add_argument('--early_stop', type=int, default=10,
+		parser.add_argument('--early_stop', type=int, default=50,
 							help='The number of epochs when dev results drop continuously.')
 		parser.add_argument('--lr', type=float, default=1e-3,
 							help='Learning rate.')
@@ -233,9 +233,11 @@ class BaseRunner(object):
 		"""
 		self.model.eval()
 		predictions = list()
+		# 测试的时候顺序取样，关闭shuffle
 		dl = DataLoader(dataset, batch_size=self.eval_batch_size, shuffle=False, num_workers=self.num_workers,
 						collate_fn=dataset.collate_batch, pin_memory=self.pin_memory)
 		for batch in tqdm(dl, leave=False, ncols=100, mininterval=1, desc='Predict'):
+		# 取100个样，其中1个阳性，99个阴性
 			if hasattr(self.model,'inference'):
 				prediction = dataset.model.inference(utils.batch_to_gpu(batch, self.model.device))['prediction']
 			else:
