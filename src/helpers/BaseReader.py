@@ -16,6 +16,7 @@ class BaseReader(object):
         parser.add_argument('--path', type=str, default='data/',
                             help='Input data dir.')
         parser.add_argument('--dataset', type=str, default='Grocery_and_Gourmet_Food',
+        # parser.add_argument('--dataset', type=str, default='MovieLens_1M',
                             help='Choose a dataset.')
         parser.add_argument('--sep', type=str, default='\t',
                             help='sep of csv file.')
@@ -44,7 +45,10 @@ class BaseReader(object):
         logging.info('Reading data from \"{}\", dataset = \"{}\" '.format(self.prefix, self.dataset))
         self.data_df = dict()
         for key in ['train', 'dev', 'test']:
-            self.data_df[key] = pd.read_csv(os.path.join(self.prefix, self.dataset, key + '.csv'), sep=self.sep).reset_index(drop=True).sort_values(by = ['user_id','time'])
+            MAIN_PATH = 'C:/codes/ReChorus'
+            # self.data_df[key] = pd.read_csv(os.path.join(self.prefix, self.dataset, key + '.csv'), sep=self.sep).reset_index(drop=True).sort_values(by = ['user_id','time'])
+            self.data_df[key] = pd.read_csv(os.path.join(self.prefix, self.dataset, 'ML_1MCTR', key + '.csv'),
+                                            sep=self.sep).reset_index(drop=True).sort_values(by = ['user_id','time'])
             self.data_df[key] = utils.eval_list_columns(self.data_df[key])
 
         logging.info('Counting dataset statistics...')

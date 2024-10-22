@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" SASRec
+""" SVAN
 Reference:
 	"Self-attentive Sequential Recommendation"
 	Kang et al., IEEE'2018.
@@ -18,7 +18,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class SASRecBase(object):
+class SVANBase(object):
 	@staticmethod
 	def parse_model_args(parser):
 		parser.add_argument('--emb_size', type=int, default=64,
@@ -91,14 +91,14 @@ class SASRecBase(object):
 		return {'prediction': prediction.view(batch_size, -1), 'u_v': u_v, 'i_v':i_v}
 
 
-class SASRec(SequentialModel, SASRecBase):
+class SVAN(SequentialModel, SVANBase):
 	reader = 'SeqReader'
 	runner = 'BaseRunner'
 	extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
 	@staticmethod
 	def parse_model_args(parser):
-		parser = SASRecBase.parse_model_args(parser)
+		parser = SVANBase.parse_model_args(parser)
 		return SequentialModel.parse_model_args(parser)
 	
 	def __init__(self, args, corpus):
@@ -106,17 +106,17 @@ class SASRec(SequentialModel, SASRecBase):
 		self._base_init(args, corpus)
 
 	def forward(self, feed_dict):
-		out_dict = SASRecBase.forward(self, feed_dict)
+		out_dict = SVANBase.forward(self, feed_dict)
 		return {'prediction': out_dict['prediction']}
 	
-class SASRecImpression(ImpressionSeqModel, SASRecBase):
+class SVANImpression(ImpressionSeqModel, SVANBase):
 	reader = 'ImpressionSeqReader'
 	runner = 'ImpressionRunner'
 	extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
 	@staticmethod
 	def parse_model_args(parser):
-		parser = SASRecBase.parse_model_args(parser)
+		parser = SVANBase.parse_model_args(parser)
 		return ImpressionSeqModel.parse_model_args(parser)
 	
 	def __init__(self, args, corpus):
@@ -124,4 +124,4 @@ class SASRecImpression(ImpressionSeqModel, SASRecBase):
 		self._base_init(args, corpus)
 
 	def forward(self, feed_dict):
-		return SASRecBase.forward(self, feed_dict)
+		return SVANBase.forward(self, feed_dict)
