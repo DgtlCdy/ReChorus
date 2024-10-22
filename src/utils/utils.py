@@ -23,31 +23,31 @@ def init_seed(seed):
 def df_to_dict(df: pd.DataFrame) -> dict:
     res = df.to_dict('list')
     for key in res:
-	    res[key] = np.array(res[key])
+        res[key] = np.array(res[key])
     return res
 
 
 def batch_to_gpu(batch: dict, device) -> dict:
     for c in batch:
-	    if type(batch[c]) is torch.Tensor:
-		    batch[c] = batch[c].to(device)
+        if type(batch[c]) is torch.Tensor:
+            batch[c] = batch[c].to(device)
     return batch
 
 
 def check(check_list: List[tuple]) -> NoReturn:
-	# observe selected tensors during training.
+    # observe selected tensors during training.
     logging.info('')
     for i, t in enumerate(check_list):
-	    d = np.array(t[1].detach().cpu())
-	    logging.info(os.linesep.join(
-			[t[0] + '\t' + str(d.shape), np.array2string(d, threshold=20)]
-		) + os.linesep)
+        d = np.array(t[1].detach().cpu())
+        logging.info(os.linesep.join(
+            [t[0] + '\t' + str(d.shape), np.array2string(d, threshold=20)]
+        ) + os.linesep)
 
 
 def eval_list_columns(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.columns:
-	    if pd.api.types.is_string_dtype(df[col]):
-		    df[col] = df[col].apply(lambda x: eval(str(x)))  # some list-value columns
+        if pd.api.types.is_string_dtype(df[col]):
+            df[col] = df[col].apply(lambda x: eval(str(x)))  # some list-value columns
     return df
 
 
@@ -57,15 +57,15 @@ def format_metric(result_dict: Dict[str, Any]) -> str:
     metrics = np.unique([k.split('@')[0] for k in result_dict.keys()])
     topks = np.unique([int(k.split('@')[1]) for k in result_dict.keys() if '@' in k])
     if not len(topks):
-	    topks = ['All']
+        topks = ['All']
     for topk in np.sort(topks):
-	    for metric in np.sort(metrics):
-		    name = '{}@{}'.format(metric, topk)
-		    m = result_dict[name] if topk != 'All' else result_dict[metric]
-		    if type(m) is float or type(m) is np.float64 or type(m) is np.float32 or type(m) is np.float64:
-			    format_str.append('{}:{:<.4f}'.format(name, m))
-		    elif type(m) is int or type(m) is np.int32 or type(m) is np.int32 or type(m) is np.int64:
-			    format_str.append('{}:{}'.format(name, m))
+        for metric in np.sort(metrics):
+            name = '{}@{}'.format(metric, topk)
+            m = result_dict[name] if topk != 'All' else result_dict[metric]
+            if type(m) is float or type(m) is np.float64 or type(m) is np.float32 or type(m) is np.float64:
+                format_str.append('{}:{:<.4f}'.format(name, m))
+            elif type(m) is int or type(m) is np.int32 or type(m) is np.int32 or type(m) is np.int64:
+                format_str.append('{}:{}'.format(name, m))
     return ','.join(format_str)
 
 
@@ -81,14 +81,14 @@ def format_arg_str(args, exclude_lst: list, max_len=20) -> str:
     horizon_len = key_max_len + value_max_len + 5
     res_str = linesep + '=' * horizon_len + linesep
     res_str += ' ' + key_title + ' ' * (key_max_len - len(key_title)) + ' | ' \
-			   + value_title + ' ' * (value_max_len - len(value_title)) + ' ' + linesep + '=' * horizon_len + linesep
+               + value_title + ' ' * (value_max_len - len(value_title)) + ' ' + linesep + '=' * horizon_len + linesep
     for key in sorted(keys):
-	    value = arg_dict[key]
-	    if value is not None:
-		    key, value = str(key), str(value).replace('\t', '\\t')
-		    value = value[:max_len-3] + '...' if len(value) > max_len else value
-		    res_str += ' ' + key + ' ' * (key_max_len - len(key)) + ' | ' \
-					   + value + ' ' * (value_max_len - len(value)) + linesep
+        value = arg_dict[key]
+        if value is not None:
+            key, value = str(key), str(value).replace('\t', '\\t')
+            value = value[:max_len-3] + '...' if len(value) > max_len else value
+            res_str += ' ' + key + ' ' * (key_max_len - len(key)) + ' | ' \
+                       + value + ' ' * (value_max_len - len(value)) + linesep
     res_str += '=' * horizon_len
     return res_str
 
@@ -96,8 +96,8 @@ def format_arg_str(args, exclude_lst: list, max_len=20) -> str:
 def check_dir(file_name: str):
     dir_path = os.path.dirname(file_name)
     if not os.path.exists(dir_path):
-	    print('make dirs:', dir_path)
-	    os.makedirs(dir_path)
+        print('make dirs:', dir_path)
+        os.makedirs(dir_path)
 
 
 def non_increasing(lst: list) -> bool:

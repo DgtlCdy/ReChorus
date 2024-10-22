@@ -117,7 +117,7 @@ def main():
             tests_tuple =[[(m.split(':')[0],float(m.split(':')[1])) for m in t.split(',')] for t in tests]
             # avgs = ['{}:{:<.4f}'.format(np.average([t[mi] for t in tests])) for mi in range(len(tests[0]))]
             avgs = ['{}:{:<.4f}'.format(tests_tuple[0][mi][0],np.average([t[mi][1] for t in tests_tuple])) 
-			    for mi in range(len(tests_tuple[0]))]
+                for mi in range(len(tests_tuple[0]))]
             info['Test'] = ','.join(avgs)
             epoch_avgs = np.mean([int(x) for x in df['Best Iter'].tolist()[-args.n:]])
             info['Best Iter'] = "%.1f"%(epoch_avgs)
