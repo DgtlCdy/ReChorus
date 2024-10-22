@@ -75,6 +75,9 @@ def main():
         data_dict[phase] = model_name.Dataset(model, corpus, phase)
         data_dict[phase].prepare()
 
+    if init_args.model_name == 'VKDESeq':
+        model.get_gram_matrix(data_dict['train'])
+
     # Run model
     runner = runner_name(args, model)
     logging.info('Test Before Training: ' + runner.print_res(data_dict['test']))
@@ -154,14 +157,22 @@ def save_rec_results(dataset, runner, topk):
 
 if __name__ == '__main__':
     init_parser = argparse.ArgumentParser(description='Model')
-    init_parser.add_argument('--model_name', type=str, default='SVAN', help='Choose a model to run.')
+    init_parser.add_argument('--model_name', type=str, default='VKDESeq', help='Choose a model to run.')
+    # init_parser.add_argument('--model_name', type=str, default='SVAN', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='SASRec', help='Choose a model to run.')
     init_parser.add_argument('--model_mode', type=str, default='', 
                              help='Model mode(i.e., suffix), for context-aware models to select "CTR" or "TopK" Ranking task;\
                                     for general/seq models to select Normal (no suffix, model_mode="") or "Impression" setting;\
                                       for rerankers to select "General" or "Sequential" Baseranker.')
     init_args, init_extras = init_parser.parse_known_args()
-    
+
+    # 设置随机种子
+    import time
+    seed = int(time.time())
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+
     # 根据模型名获取模型和对应的reader、runner，这几个name指代类本身
     model_name = eval('{0}.{0}{1}'.format(init_args.model_name,init_args.model_mode))
     reader_name = eval('{0}.{0}'.format(model_name.reader))  # model chooses the reader

@@ -150,7 +150,8 @@ class BaseRunner(object):
                 if self.test_epoch > 0 and epoch % self.test_epoch  == 0:
                     test_result = self.evaluate(data_dict['test'], self.topk[:1], self.metrics)
                     logging_str += '\n test=({})'.format(utils.format_metric(test_result))
-                    utils.write_test_result(f'{logging_str}', 'SVAN_base.txt')
+                    # utils.write_test_result(f'{logging_str}', f'{str(model)}_base.txt')
+                    utils.write_test_result(f'{logging_str}', f'VKDESeq_base.txt')
                 testing_time = self._check_time()
                 logging_str += ' [{:<.1f} s]'.format(testing_time)
 

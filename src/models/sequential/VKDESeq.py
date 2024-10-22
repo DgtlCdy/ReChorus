@@ -13,6 +13,8 @@ Note:
 import torch
 import torch.nn as nn
 import numpy as np
+import scipy.sparse as sp
+import utils
 
 from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
@@ -37,6 +39,9 @@ class VKDESeqBase(object):
         self.len_range = torch.from_numpy(np.arange(self.max_his)).to(self.device)
         self._base_define_params()
         self.apply(self.init_weights)
+        self.R = 0
+        self.gram_matrix = 0  # 把item相似矩阵放在base里面
+
 
     def _base_define_params(self):
         self.i_embeddings = nn.Embedding(self.item_num, self.emb_size)
@@ -56,7 +61,23 @@ class VKDESeqBase(object):
         batch_size, seq_len = history.shape
 
         valid_his = (history > 0).long()
-        his_vectors = self.i_embeddings(history)
+        # his_vectors = self.i_embeddings(history)
+
+        interests_sim = self.gram_matrix[history]
+        # 3种方式：
+        # 1，哈达玛乘一个全部交互，即直接拿相似度矩阵；
+        # 2，哈达玛乘一个用户全局交互
+        # 3，哈达玛乘一个用户会话内交互
+        # user_it = torch.Tensor
+        # history_01 = history.scatter_
+        # .scatter_(1, indices, gram_matrix.gather(1, indices))
+        # interests_sim = interests_sim * 
+
+        # torch.nn.functional.normalize(interests_sim, p=2)
+
+
+        interests_input = interests_sim @ self.i_embeddings.weight
+        his_vectors = interests_input
 
         # Position embedding
         # lengths:  [4, 2, 5]
@@ -79,7 +100,11 @@ class VKDESeqBase(object):
         # ↑ average pooling is shown to be more effective than the most recent embedding
 
         i_vectors = self.i_embeddings(i_ids) # 获取阳性item和阴性item的embedding
-        prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
+
+        prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])
+        prediction = prediction.sum(-1).sum(-1)
+        prediction = prediction[:, :] / lengths[:, None]
+        # prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
 
         u_v = his_vector.repeat(1,i_ids.shape[1]).view(i_ids.shape[0],i_ids.shape[1],-1)
         i_v = i_vectors
@@ -88,7 +113,7 @@ class VKDESeqBase(object):
         # prediction是预测的内积，训练时返回对两个指定item的内积，测试时返回100个item的id？
         # u_v是预测的embedding
         # i_v是阳性和阴性的embedding
-        return {'prediction': prediction.view(batch_size, -1), 'u_v': u_v, 'i_v':i_v}
+        return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
 class VKDESeq(SequentialModel, VKDESeqBase):
@@ -105,9 +130,37 @@ class VKDESeq(SequentialModel, VKDESeqBase):
         SequentialModel.__init__(self, args, corpus)
         self._base_init(args, corpus)
 
+    def get_gram_matrix(self, dataset):
+        R = torch.zeros(self.user_num, self.item_num)
+        for (user_index, item_index) in zip(dataset.data['user_id'], dataset.data['item_id']):
+            R[user_index, item_index] = 1
+        # self.R = R
+
+        row_sum = np.array(R.sum(axis=1))
+        d_inv = np.power(row_sum, -0.5).flatten() #根号度分之一
+        d_inv[np.isposinf(d_inv)] = 0.
+        d_mat = sp.diags(d_inv) # 对角的度矩阵
+        norm_mat = d_mat.dot(R)
+        col_sum = np.array(R.sum(axis=0))
+        d_inv = np.power(col_sum, -0.5).flatten()
+        d_inv[np.isposinf(d_inv)] = 0.
+        d_mat = sp.diags(d_inv)
+        norm_mat = norm_mat.dot(d_mat.toarray()).astype(np.float32)
+        gram_matrix = norm_mat.T.dot(norm_mat)
+        gram_matrix =  torch.Tensor(gram_matrix).to(self.device)
+
+        # 取top500的相似度去做
+        indices = torch.topk(gram_matrix, 500, dim=1).indices
+        gram_matrix_topk = torch.zeros_like(gram_matrix)
+        gram_matrix_topk.scatter_(1, indices, gram_matrix.gather(1, indices))
+
+        gram_matrix_topk = torch.nn.functional.normalize(gram_matrix_topk, p=2)
+        self.gram_matrix = gram_matrix_topk
+
     def forward(self, feed_dict):
         out_dict = VKDESeqBase.forward(self, feed_dict)
-        return {'prediction': out_dict['prediction']}
+        # return {'prediction': out_dict['prediction']}
+        return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
 class VKDESeqImpression(ImpressionSeqModel, VKDESeqBase):
     reader = 'ImpressionSeqReader'

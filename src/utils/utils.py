@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from typing import List, Dict, NoReturn, Any
 
+device = torch.device('cuda')
 
 def init_seed(seed):
     random.seed(seed)

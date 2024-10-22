@@ -27,6 +27,12 @@ class BaseModel(nn.Module):
 
     @staticmethod
     def init_weights(m):
+        import time
+        seed = int(time.time())
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+
         if 'Linear' in str(type(m)):
             nn.init.normal_(m.weight, mean=0.0, std=0.01)
             if m.bias is not None:
