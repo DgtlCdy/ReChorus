@@ -66,5 +66,5 @@ class BaseReader(object):
         if 'label' in key_columns:
             positive_num = (self.all_df.label==1).sum()
             logging.info('"# positive interaction": {} ({:.1f}%)'.format(
-				positive_num, positive_num/self.all_df.shape[0]*100))
+			    positive_num, positive_num/self.all_df.shape[0]*100))
         
