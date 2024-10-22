@@ -147,9 +147,10 @@ class BaseRunner(object):
                     epoch + 1, loss, training_time, utils.format_metric(dev_result))
 
                 # Test
-                if self.test_epoch > 0 and epoch % self.test_epoch  == 0:
+                # if self.test_epoch > 0 and epoch % self.test_epoch  == 0:
+                if True:
                     test_result = self.evaluate(data_dict['test'], self.topk[:1], self.metrics)
-                    logging_str += '\n test=({})'.format(utils.format_metric(test_result))
+                    logging_str += ', test=({})'.format(utils.format_metric(test_result))
                     # utils.write_test_result(f'{logging_str}', f'{str(model)}_base.txt')
                     utils.write_test_result(f'{logging_str}', f'VKDESeq_base.txt')
                 testing_time = self._check_time()
@@ -209,6 +210,8 @@ class BaseRunner(object):
                 restored_prediction[torch.arange(item_ids.shape[0]).unsqueeze(-1), indices] = prediction   
                 out_dict['prediction'] = restored_prediction
 
+            if 'kl' not in out_dict:
+                out_dict['kl'] = 0
             loss = model.loss(out_dict) + 0.2 * out_dict['kl']
             loss.backward()
             model.optimizer.step()
