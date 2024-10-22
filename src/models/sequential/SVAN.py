@@ -50,8 +50,8 @@ class SVANBase(object):
             for _ in range(self.num_layers)
         ])
 
-        enc_dims = [1000, 64]
-        dec_dims = [64, 1000]
+        enc_dims = [20*64, 256]
+        dec_dims = [256, 20*64]
         for i, (in_dim, out_dim) in enumerate(zip(enc_dims[:-1], enc_dims[1:])):
             # 在倒数第二层分裂开，一半均值，一半方差
             if i == len(enc_dims) - 2:
@@ -91,17 +91,22 @@ class SVANBase(object):
         for block in self.transformer_block:
             his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
 
-        # # 进入VAE
-        # x = self.vae_encoder(his_vectors.flatten())
-        # mean, logvar = x[:, :(len(x[0] - 1)//2)], x[:, (len(x[0] - 1)//2):-1]
-        # stddev = torch.exp(0.5 * logvar)
-        # epsilon = torch.randn_like(stddev)
-        # if self.training:
-        #     z = mean + epsilon * stddev
-        # else:
-        #     self.optim.zero_grad()
-        #     z = mean
-        # his_vectors = self.vae_decoder(z)
+        his_vectors = his_vectors.reshape(his_vectors.size(0), -1)
+
+        # 进入VAE
+        x = self.vae_encoder(his_vectors)
+        mean, logvar = x[:, :(len(x[0] - 1)//2)], x[:, (len(x[0] - 1)//2):]
+        stddev = torch.exp(0.5 * logvar)
+        epsilon = torch.randn_like(stddev)
+        var_square = torch.exp(logvar)
+        kl = 0.5 * torch.mean(torch.sum(mean ** 2 + var_square - 1. - logvar, dim=-1))
+        if self.training:
+            z = mean + epsilon * stddev
+        else:
+            z = mean
+        his_vectors = self.vae_decoder(z)
+
+        his_vectors = his_vectors.reshape(his_vectors.size(0), 20, 64)
 
         for block in self.decode_transformer_block:
             his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
@@ -123,7 +128,7 @@ class SVANBase(object):
         # prediction是预测的内积，训练时返回对两个指定item的内积，测试时返回100个item的id？
         # u_v是预测的embedding
         # i_v是阳性和阴性的embedding
-        return {'prediction': prediction.view(batch_size, -1), 'u_v': u_v, 'i_v':i_v}
+        return {'prediction': prediction.view(batch_size, -1), 'kl': kl, 'u_v': u_v, 'i_v':i_v}
 
 
 class SVAN(SequentialModel, SVANBase):
@@ -142,8 +147,8 @@ class SVAN(SequentialModel, SVANBase):
 
     def forward(self, feed_dict):
         out_dict = SVANBase.forward(self, feed_dict)
-        return {'prediction': out_dict['prediction']}
-    
+        return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
+
 class SVANImpression(ImpressionSeqModel, SVANBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
