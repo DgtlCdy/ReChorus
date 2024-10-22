@@ -57,8 +57,9 @@ class SVANBase(object):
             if i == len(enc_dims) - 2:
                 out_dim = out_dim * 2
             self.vae_encoder.add_module(name='Encoder_Linear_%s'%i, module=nn.Linear(in_dim, out_dim))
-                # SAVN在VAE阶段不使用激活函数
-            
+        for i, (in_dim, out_dim) in enumerate(zip(dec_dims[:-1], dec_dims[1:])):
+            # 解码器不需要分裂开，通过重采样来传
+            self.vae_decoder.add_module(name='Decoder_Linear_%s'%i, module=nn.Linear(in_dim, out_dim))
 
         self.decode_transformer_block = nn.ModuleList([
             layers.TransformerLayer(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
@@ -89,7 +90,21 @@ class SVANBase(object):
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
             his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
-        
+
+        # # 进入VAE
+        # x = self.vae_encoder(his_vectors.flatten())
+        # mean, logvar = x[:, :(len(x[0] - 1)//2)], x[:, (len(x[0] - 1)//2):-1]
+        # stddev = torch.exp(0.5 * logvar)
+        # epsilon = torch.randn_like(stddev)
+        # if self.training:
+        #     z = mean + epsilon * stddev
+        # else:
+        #     self.optim.zero_grad()
+        #     z = mean
+        # his_vectors = self.vae_decoder(z)
+
+        for block in self.decode_transformer_block:
+            his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
 
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
