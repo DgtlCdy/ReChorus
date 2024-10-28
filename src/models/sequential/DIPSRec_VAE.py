@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" VKDESeq
+""" DIPSRec_VAE
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class VKDESeqBase(object):
+class DIPSRec_VAEBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -120,14 +120,14 @@ class VKDESeqBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class VKDESeq(SequentialModel, VKDESeqBase):
+class DIPSRec_VAE(SequentialModel, DIPSRec_VAEBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = VKDESeqBase.parse_model_args(parser)
+        parser = DIPSRec_VAEBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -171,18 +171,18 @@ class VKDESeq(SequentialModel, VKDESeqBase):
         self.gram_matrix = gram_matrix_topk
 
     def forward(self, feed_dict):
-        out_dict = VKDESeqBase.forward(self, feed_dict)
+        out_dict = DIPSRec_VAEBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class VKDESeqImpression(ImpressionSeqModel, VKDESeqBase):
+class DIPSRec_VAEImpression(ImpressionSeqModel, DIPSRec_VAEBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = VKDESeqBase.parse_model_args(parser)
+        parser = DIPSRec_VAEBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -190,4 +190,4 @@ class VKDESeqImpression(ImpressionSeqModel, VKDESeqBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return VKDESeqBase.forward(self, feed_dict)
+        return DIPSRec_VAEBase.forward(self, feed_dict)

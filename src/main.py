@@ -75,7 +75,7 @@ def main():
         data_dict[phase] = model_name.Dataset(model, corpus, phase)
         data_dict[phase].prepare()
 
-    if init_args.model_name == 'VKDESeq':
+    if init_args.model_name == 'DIPSRec':
         model.get_gram_matrix(data_dict['train'])
 
     # Run model
@@ -157,7 +157,7 @@ def save_rec_results(dataset, runner, topk):
 
 if __name__ == '__main__':
     init_parser = argparse.ArgumentParser(description='Model')
-    init_parser.add_argument('--model_name', type=str, default='VKDESeq', help='Choose a model to run.')
+    init_parser.add_argument('--model_name', type=str, default='DIPSRec', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='SVAN', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='SASRec', help='Choose a model to run.')
     init_parser.add_argument('--model_mode', type=str, default='', 
