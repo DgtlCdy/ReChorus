@@ -47,7 +47,13 @@ class DIPSRec_VAEBase(object):
         self.i_embeddings = nn.Embedding(self.item_num, self.emb_size)
         self.p_embeddings = nn.Embedding(self.max_his + 1, self.emb_size)
 
-        self.transformer_block = nn.ModuleList([
+        self.transformer_block_mu = nn.ModuleList([
+            layers.TransformerLayer(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
+                                    dropout=self.dropout, kq_same=False)
+            for _ in range(self.num_layers)
+        ])
+        
+        self.transformer_block_logvar = nn.ModuleList([
             layers.TransformerLayer(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
                                     dropout=self.dropout, kq_same=False)
             for _ in range(self.num_layers)
@@ -94,8 +100,15 @@ class DIPSRec_VAEBase(object):
         attn_mask = torch.from_numpy(causality_mask).to(self.device)
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
-        for block in self.transformer_block:
-            his_vectors = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
+        for block in self.transformer_block_mu:
+            his_vectors_mu = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
+        for block in self.transformer_block_mu:
+            his_vectors_logvar = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
+        
+        # 重参数化
+        
+        
+        
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
