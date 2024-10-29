@@ -102,13 +102,22 @@ class DIPSRec_VAEBase(object):
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block_mu:
             his_vectors_mu = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
-        for block in self.transformer_block_mu:
+        for block in self.transformer_block_logvar:
             his_vectors_logvar = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
-        
-        # 重参数化
-        
-        
-        
+        his_vectors_stddev = torch.exp(0.5 * his_vectors_logvar)
+
+        # # 1，保持原来的情况，这种方案就是DIPSRec
+        # his_vectors = his_vectors_mu
+        # kl = 0
+        # 2，使用变分，重参数化
+        epsilon = torch.randn_like(his_vectors_mu)
+        if self.training:
+            his_vectors = his_vectors_mu + epsilon * his_vectors_stddev
+        else:
+            his_vectors = his_vectors_mu
+        kl = 0.5 * torch.mean(torch.sum(his_vectors_mu ** 2 + torch.exp(his_vectors_logvar) - 1. - his_vectors_logvar, dim=-1))
+
+
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
@@ -118,6 +127,7 @@ class DIPSRec_VAEBase(object):
 
         i_vectors = self.i_embeddings(i_ids) # 获取阳性item和阴性item的embedding
 
+        # 取全部item的embedding作预测
         prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])
         prediction = prediction.sum(-1).sum(-1)
         prediction = prediction[:, :] / lengths[:, None]
@@ -130,7 +140,7 @@ class DIPSRec_VAEBase(object):
         # prediction是预测的内积，训练时返回对两个指定item的内积，测试时返回100个item的id？
         # u_v是预测的embedding
         # i_v是阳性和阴性的embedding
-        return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
+        return {'prediction': prediction.view(batch_size, -1), 'kl': kl, 'u_v': u_v, 'i_v':i_v}
 
 
 class DIPSRec_VAE(SequentialModel, DIPSRec_VAEBase):
