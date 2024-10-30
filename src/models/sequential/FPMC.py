@@ -58,7 +58,8 @@ class FPMC(SequentialModel):
     class Dataset(SequentialModel.Dataset):
         def _get_feed_dict(self, index):
             user_id, target_item = self.data['user_id'][index], self.data['item_id'][index]
-            if self.phase != 'train' and self.model.test_all:
+            # if self.phase != 'train' and self.model.test_all:
+            if self.phase != 'train' and self.test_all:
                 neg_items = np.arange(1, self.corpus.n_items)
             else:
                 neg_items = self.data['neg_items'][index]

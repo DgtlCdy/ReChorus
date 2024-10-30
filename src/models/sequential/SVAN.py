@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" SASRec
+""" SVAN
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -18,7 +18,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class SASRecBase(object):
+class SVANBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -35,6 +35,8 @@ class SASRecBase(object):
         self.num_layers = args.num_layers
         self.num_heads = args.num_heads
         self.len_range = torch.from_numpy(np.arange(self.max_his)).to(self.device)
+        self.vae_encoder = nn.Sequential()
+        self.vae_decoder = nn.Sequential()
         self._base_define_params()
         self.apply(self.init_weights)
 
@@ -43,6 +45,23 @@ class SASRecBase(object):
         self.p_embeddings = nn.Embedding(self.max_his + 1, self.emb_size)
 
         self.transformer_block = nn.ModuleList([
+            layers.TransformerLayer(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
+                                    dropout=self.dropout, kq_same=False)
+            for _ in range(self.num_layers)
+        ])
+
+        enc_dims = [20*64, 256]
+        dec_dims = [256, 20*64]
+        for i, (in_dim, out_dim) in enumerate(zip(enc_dims[:-1], enc_dims[1:])):
+            # 在倒数第二层分裂开，一半均值，一半方差
+            if i == len(enc_dims) - 2:
+                out_dim = out_dim * 2
+            self.vae_encoder.add_module(name='Encoder_Linear_%s'%i, module=nn.Linear(in_dim, out_dim))
+        for i, (in_dim, out_dim) in enumerate(zip(dec_dims[:-1], dec_dims[1:])):
+            # 解码器不需要分裂开，通过重采样来传
+            self.vae_decoder.add_module(name='Decoder_Linear_%s'%i, module=nn.Linear(in_dim, out_dim))
+
+        self.decode_transformer_block = nn.ModuleList([
             layers.TransformerLayer(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
                                     dropout=self.dropout, kq_same=False)
             for _ in range(self.num_layers)
@@ -71,6 +90,27 @@ class SASRecBase(object):
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
             his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
+
+        his_vectors = his_vectors.reshape(his_vectors.size(0), -1)
+
+        # 进入VAE
+        x = self.vae_encoder(his_vectors)
+        mean, logvar = x[:, :(len(x[0] - 1)//2)], x[:, (len(x[0] - 1)//2):]
+        stddev = torch.exp(0.5 * logvar)
+        epsilon = torch.randn_like(stddev)
+        var_square = torch.exp(logvar)
+        kl = 0.5 * torch.mean(torch.sum(mean ** 2 + var_square - 1. - logvar, dim=-1))
+        if self.training:
+            z = mean + epsilon * stddev
+        else:
+            z = mean
+        his_vectors = self.vae_decoder(z)
+
+        his_vectors = his_vectors.reshape(his_vectors.size(0), 20, 64)
+
+        for block in self.decode_transformer_block:
+            his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
+
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
@@ -88,17 +128,17 @@ class SASRecBase(object):
         # prediction是预测的内积，训练时返回对两个指定item的内积，测试时返回100个item的id？
         # u_v是预测的embedding
         # i_v是阳性和阴性的embedding
-        return {'prediction': prediction.view(batch_size, -1), 'u_v': u_v, 'i_v':i_v}
+        return {'prediction': prediction.view(batch_size, -1), 'kl': kl, 'u_v': u_v, 'i_v':i_v}
 
 
-class SASRec(SequentialModel, SASRecBase):
+class SVAN(SequentialModel, SVANBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = SASRecBase.parse_model_args(parser)
+        parser = SVANBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -106,17 +146,17 @@ class SASRec(SequentialModel, SASRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        out_dict = SASRecBase.forward(self, feed_dict)
-        return {'prediction': out_dict['prediction']}
-    
-class SASRecImpression(ImpressionSeqModel, SASRecBase):
+        out_dict = SVANBase.forward(self, feed_dict)
+        return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
+
+class SVANImpression(ImpressionSeqModel, SVANBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = SASRecBase.parse_model_args(parser)
+        parser = SVANBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -124,4 +164,4 @@ class SASRecImpression(ImpressionSeqModel, SASRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return SASRecBase.forward(self, feed_dict)
+        return SVANBase.forward(self, feed_dict)

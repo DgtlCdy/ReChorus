@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" SASRec
+""" DIPSRec_Deffusion
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -13,12 +13,14 @@ Note:
 import torch
 import torch.nn as nn
 import numpy as np
+import scipy.sparse as sp
+import utils
 
 from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class SASRecBase(object):
+class DIPSRec_DeffusionBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -37,6 +39,9 @@ class SASRecBase(object):
         self.len_range = torch.from_numpy(np.arange(self.max_his)).to(self.device)
         self._base_define_params()
         self.apply(self.init_weights)
+        self.R = 0
+        self.gram_matrix = 0  # 把item相似矩阵放在base里面
+
 
     def _base_define_params(self):
         self.i_embeddings = nn.Embedding(self.item_num, self.emb_size)
@@ -50,13 +55,32 @@ class SASRecBase(object):
 
     def forward(self, feed_dict):
         self.check_list = []
+        u_ids = feed_dict['user_id']
         i_ids = feed_dict['item_id']  # [batch_size, -1]
         history = feed_dict['history_items']  # [batch_size, history_max]
         lengths = feed_dict['lengths']  # [batch_size] # 每一个用户序列的长度，取值1-20
         batch_size, seq_len = history.shape
-
         valid_his = (history > 0).long()
-        his_vectors = self.i_embeddings(history)
+
+        interests_sim = self.gram_matrix[history]
+        # 4种构建基于相似的兴趣的方式：
+        # 0，不使用交互，传入自身Embedding直接作为兴趣
+        # his_vectors = self.i_embeddings(history)
+        # 1，直接拿相似度矩阵，哈达玛乘一个全1向量
+        interests_sim = interests_sim
+        # 2，哈达玛乘一个用户全局交互
+        # user_interaction = self.R[u_ids]
+        # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
+        # interests_sim = torch.nn.functional.normalize(interests_sim, p=2)
+        # 3，哈达玛乘一个用户会话内交互，即lengths个交互
+        # user_interaction = torch.zeros(batch_size, self.item_num).to(self.device)
+        # for idx in range(batch_size):
+        #     user_interaction[idx, history[idx, :lengths[idx]]] = 1
+        # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
+        # interests_sim = torch.nn.functional.normalize(interests_sim, p=2)
+
+        interests_input = interests_sim @ self.i_embeddings.weight
+        his_vectors = interests_input
 
         # Position embedding
         # lengths:  [4, 2, 5]
@@ -68,9 +92,10 @@ class SASRecBase(object):
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系
         attn_mask = torch.from_numpy(causality_mask).to(self.device)
+        attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
-            his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
+            his_vectors = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
@@ -79,7 +104,11 @@ class SASRecBase(object):
         # ↑ average pooling is shown to be more effective than the most recent embedding
 
         i_vectors = self.i_embeddings(i_ids) # 获取阳性item和阴性item的embedding
-        prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
+
+        prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])
+        prediction = prediction.sum(-1).sum(-1)
+        prediction = prediction[:, :] / lengths[:, None]
+        # prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
 
         u_v = his_vector.repeat(1,i_ids.shape[1]).view(i_ids.shape[0],i_ids.shape[1],-1)
         i_v = i_vectors
@@ -88,35 +117,72 @@ class SASRecBase(object):
         # prediction是预测的内积，训练时返回对两个指定item的内积，测试时返回100个item的id？
         # u_v是预测的embedding
         # i_v是阳性和阴性的embedding
-        return {'prediction': prediction.view(batch_size, -1), 'u_v': u_v, 'i_v':i_v}
+        return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class SASRec(SequentialModel, SASRecBase):
+class DIPSRec_Deffusion(SequentialModel, DIPSRec_DeffusionBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = SASRecBase.parse_model_args(parser)
+        parser = DIPSRec_DeffusionBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
         SequentialModel.__init__(self, args, corpus)
         self._base_init(args, corpus)
 
+    def get_gram_matrix(self, dataset):
+        R = torch.zeros(self.user_num, self.item_num)
+        for (user_index, item_index) in zip(dataset.data['user_id'], dataset.data['item_id']):
+            R[user_index, item_index] = 1
+        self.R = R.to(self.device)
+
+        row_sum = np.array(R.sum(axis=1))
+        d_inv = np.power(row_sum, -0.5).flatten() #根号度分之一
+        d_inv[np.isposinf(d_inv)] = 0.
+        d_mat = sp.diags(d_inv) # 对角的度矩阵
+        norm_mat = d_mat.dot(R)
+        col_sum = np.array(R.sum(axis=0))
+        d_inv = np.power(col_sum, -0.5).flatten()
+        d_inv[np.isposinf(d_inv)] = 0.
+        d_mat = sp.diags(d_inv)
+        norm_mat = norm_mat.dot(d_mat.toarray()).astype(np.float32)
+        gram_matrix = norm_mat.T.dot(norm_mat)
+        gram_matrix =  torch.Tensor(gram_matrix).to(self.device)
+
+        # self.gram_matrix = gram_matrix
+        # return
+        # item_embedding_r2 = gram_matrix @ self.R.T
+        # gram_matrix_r2 = item_embedding_r2 @ item_embedding_r2.T
+        # gram_matrix_r2 =  torch.nn.functional.normalize(gram_matrix_r2)
+        # gram_matrix_r2 = gram_matrix_r2 / gram_matrix_r2.mean() * gram_matrix.mean()
+        # self.gram_matrix = gram_matrix * 0.5 + gram_matrix_r2 * 0.5
+        # return
+
+        # 取top500的相似度去做
+        indices = torch.topk(gram_matrix, 500, dim=1).indices
+        gram_matrix_topk = torch.zeros_like(gram_matrix)
+        gram_matrix_topk.scatter_(1, indices, gram_matrix.gather(1, indices))
+
+        gram_matrix_topk = torch.nn.functional.normalize(gram_matrix_topk, p=2)
+        self.gram_matrix = gram_matrix_topk
+
     def forward(self, feed_dict):
-        out_dict = SASRecBase.forward(self, feed_dict)
-        return {'prediction': out_dict['prediction']}
+        out_dict = DIPSRec_DeffusionBase.forward(self, feed_dict)
+        # return {'prediction': out_dict['prediction']}
+        return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class SASRecImpression(ImpressionSeqModel, SASRecBase):
+class DIPSRec_DeffusionImpression(ImpressionSeqModel, DIPSRec_DeffusionBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = SASRecBase.parse_model_args(parser)
+        parser = DIPSRec_DeffusionBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -124,4 +190,4 @@ class SASRecImpression(ImpressionSeqModel, SASRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return SASRecBase.forward(self, feed_dict)
+        return DIPSRec_DeffusionBase.forward(self, feed_dict)
