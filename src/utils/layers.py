@@ -118,6 +118,78 @@ class TransformerLayer(nn.Module):
         return output
 
 
+class TransformerLayer_VAE(nn.Module):
+    def __init__(self, d_model, d_ff, n_heads, dropout=0, kq_same=False):
+        super().__init__()
+        """
+        This is a Basic Block of Transformer. It contains one Multi-head attention object. 
+        Followed by layer norm and position wise feedforward net and dropout layer.
+        """
+        # Multi-Head Attention Block
+        self.masked_attn_head_mu = MultiHeadAttention(d_model, n_heads, kq_same=kq_same)
+        self.masked_attn_head_logvar = MultiHeadAttention(d_model, n_heads, kq_same=kq_same)
+
+        # Two layer norm layer and two dropout layer
+        self.layer_norm1 = nn.LayerNorm(d_model)
+        self.dropout1 = nn.Dropout(dropout)
+
+        self.linear1 = nn.Linear(d_model, d_ff)
+        self.linear2 = nn.Linear(d_ff, d_model)
+        self.linear1_logvar = nn.Linear(d_model, d_ff)
+        self.linear2_logvar = nn.Linear(d_ff, d_model)
+
+        self.layer_norm2 = nn.LayerNorm(d_model)
+        self.dropout2 = nn.Dropout(dropout)
+
+    def forward(self, seq, mask=None):
+        context_mu = self.masked_attn_head_mu(seq, seq, seq, mask)
+        context_mu = self.layer_norm1(self.dropout1(context_mu) + seq)
+        output_mu = self.linear1(context_mu).relu()
+        output_mu = self.linear2(output_mu)
+        output_mu = self.layer_norm2(self.dropout2(output_mu) + context_mu)
+
+        # 使用不同的自注意力层，带有额外的残差连接
+        # context_logvar = self.masked_attn_head_logvar(seq, seq, seq, mask)
+        # context_logvar = self.layer_norm1(self.dropout1(context_logvar) + seq)
+        # output_logvar = self.linear1_logvar(context_logvar).tanh()
+        # output_logvar = self.linear2_logvar(output_logvar)
+        # output_logvar = self.layer_norm2(self.dropout2(output_logvar) + context_logvar)
+        # 2，使用同一个自注意力层
+        output_logvar = self.linear1_logvar(context_mu).relu()
+        output_logvar = self.linear2_logvar(output_logvar)
+        # # output_logvar = self.layer_norm2(self.dropout2(output_logvar) + context_mu)
+
+        return output_mu, output_logvar
+
+class TransformerLayerAct(nn.Module):
+    def __init__(self, d_model, d_ff, n_heads, dropout=0, kq_same=False, act=torch.relu):
+        super().__init__()
+        """
+        This is a Basic Block of Transformer. It contains one Multi-head attention object. 
+        Followed by layer norm and position wise feedforward net and dropout layer.
+        """
+        # Multi-Head Attention Block
+        self.masked_attn_head = MultiHeadAttention(d_model, n_heads, kq_same=kq_same)
+
+        # Two layer norm layer and two dropout layer
+        self.layer_norm1 = nn.LayerNorm(d_model)
+        self.dropout1 = nn.Dropout(dropout)
+
+        self.linear1 = nn.Linear(d_model, d_ff)
+        self.linear2 = nn.Linear(d_ff, d_model)
+
+        self.layer_norm2 = nn.LayerNorm(d_model)
+        self.dropout2 = nn.Dropout(dropout)
+
+    def forward(self, seq, mask=None):
+        context = self.masked_attn_head(seq, seq, seq, mask)
+        context = self.layer_norm1(self.dropout1(context) + seq)
+        output = self.linear1(context).act()
+        output = self.linear2(output)
+        output = self.layer_norm2(self.dropout2(output) + context)
+        return output
+
+
 class MultiHeadTargetAttention(nn.Module):
     '''
     Reference: FuxiCTR, https://github.com/reczoo/FuxiCTR/blob/v2.0.1/fuxictr/pytorch/layers/attentions/target_attention.py

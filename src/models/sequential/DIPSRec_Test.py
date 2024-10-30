@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" DIPSRec_VAE
+""" DIPSRec_Test
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class DIPSRec_VAEBase(object):
+class DIPSRec_TestBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -144,14 +144,14 @@ class DIPSRec_VAEBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': kl, 'u_v': u_v, 'i_v':i_v}
 
 
-class DIPSRec_VAE(SequentialModel, DIPSRec_VAEBase):
+class DIPSRec_Test(SequentialModel, DIPSRec_TestBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_VAEBase.parse_model_args(parser)
+        parser = DIPSRec_TestBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -195,18 +195,18 @@ class DIPSRec_VAE(SequentialModel, DIPSRec_VAEBase):
         self.gram_matrix = gram_matrix_topk
 
     def forward(self, feed_dict):
-        out_dict = DIPSRec_VAEBase.forward(self, feed_dict)
+        out_dict = DIPSRec_TestBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class DIPSRec_VAEImpression(ImpressionSeqModel, DIPSRec_VAEBase):
+class DIPSRec_TestImpression(ImpressionSeqModel, DIPSRec_TestBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_VAEBase.parse_model_args(parser)
+        parser = DIPSRec_TestBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -214,4 +214,4 @@ class DIPSRec_VAEImpression(ImpressionSeqModel, DIPSRec_VAEBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return DIPSRec_VAEBase.forward(self, feed_dict)
+        return DIPSRec_TestBase.forward(self, feed_dict)

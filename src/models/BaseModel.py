@@ -112,6 +112,8 @@ class BaseModel(nn.Module):
             self.buffer = copy.deepcopy(model.buffer)
             self.num_neg = copy.deepcopy(model.num_neg)
             self.test_all = copy.deepcopy(model.test_all)
+            if str(type(model)) == "<class 'models.sequential.TiSASRec.TiSASRec'>":
+                self.user_min_interval = copy.deepcopy(model.user_min_interval)
 
             self.corpus = corpus  # reader object reference
             self.phase = phase  # train / dev / test

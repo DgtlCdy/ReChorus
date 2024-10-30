@@ -68,19 +68,24 @@ class DIPSRecBase(object):
         # his_vectors = self.i_embeddings(history)
         # 1，直接拿相似度矩阵，哈达玛乘一个全1向量
         interests_sim = interests_sim
+        interests_input = interests_sim @ self.i_embeddings.weight
+        his_vectors = interests_input
         # 2，哈达玛乘一个用户全局交互
         # user_interaction = self.R[u_ids]
         # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
         # interests_sim = torch.nn.functional.normalize(interests_sim, p=2)
+        # interests_input = interests_sim @ self.i_embeddings.weight
+        # his_vectors = interests_input
         # 3，哈达玛乘一个用户会话内交互，即lengths个交互
         # user_interaction = torch.zeros(batch_size, self.item_num).to(self.device)
         # for idx in range(batch_size):
         #     user_interaction[idx, history[idx, :lengths[idx]]] = 1
         # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
         # interests_sim = torch.nn.functional.normalize(interests_sim, p=2)
+        # interests_input = interests_sim @ self.i_embeddings.weight
+        # his_vectors = interests_input
 
-        interests_input = interests_sim @ self.i_embeddings.weight
-        his_vectors = interests_input
+
 
         # Position embedding
         # lengths:  [4, 2, 5]
@@ -96,6 +101,7 @@ class DIPSRecBase(object):
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
             his_vectors = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
@@ -105,10 +111,14 @@ class DIPSRecBase(object):
 
         i_vectors = self.i_embeddings(i_ids) # 获取阳性item和阴性item的embedding
 
+        # 输出侧
+        # 方法0：对最后一个输出embedding求内积
+        # prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
+        # 方法1：把所有的vectors放一起求内积均值
         prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])
         prediction = prediction.sum(-1).sum(-1)
         prediction = prediction[:, :] / lengths[:, None]
-        # prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
+
 
         u_v = his_vector.repeat(1,i_ids.shape[1]).view(i_ids.shape[0],i_ids.shape[1],-1)
         i_v = i_vectors
@@ -153,15 +163,20 @@ class DIPSRec(SequentialModel, DIPSRecBase):
         gram_matrix = norm_mat.T.dot(norm_mat)
         gram_matrix =  torch.Tensor(gram_matrix).to(self.device)
 
+        # 方法0：取原生的相似度
         # self.gram_matrix = gram_matrix
         # return
+
+        # 方法1：取高阶相似度
         # item_embedding_r2 = gram_matrix @ self.R.T
         # gram_matrix_r2 = item_embedding_r2 @ item_embedding_r2.T
         # gram_matrix_r2 =  torch.nn.functional.normalize(gram_matrix_r2)
         # gram_matrix_r2 = gram_matrix_r2 / gram_matrix_r2.mean() * gram_matrix.mean()
-        # self.gram_matrix = gram_matrix * 0.5 + gram_matrix_r2 * 0.5
+        # gram_matrix = gram_matrix * 0.5 + gram_matrix_r2 * 0.5
+        # self.gram_matrix = gram_matrix * 0.7 + gram_matrix_r2 * 0.3
         # return
 
+        # 方法2：取top相似度
         # 取top500的相似度去做
         indices = torch.topk(gram_matrix, 500, dim=1).indices
         gram_matrix_topk = torch.zeros_like(gram_matrix)
@@ -169,6 +184,7 @@ class DIPSRec(SequentialModel, DIPSRecBase):
 
         gram_matrix_topk = torch.nn.functional.normalize(gram_matrix_topk, p=2)
         self.gram_matrix = gram_matrix_topk
+
 
     def forward(self, feed_dict):
         out_dict = DIPSRecBase.forward(self, feed_dict)

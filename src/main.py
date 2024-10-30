@@ -75,7 +75,7 @@ def main():
         data_dict[phase] = model_name.Dataset(model, corpus, phase)
         data_dict[phase].prepare()
 
-    if init_args.model_name in ['DIPSRec', 'DIPSRec_VAE', 'DIPSRec_Deffusion']:
+    if init_args.model_name in ['DIPSRec', 'DIPSRec_VAE', 'DIPSRec_Deffusion', 'DIPSRec_Test']:
         model.get_gram_matrix(data_dict['train'])
 
     # Run model
@@ -157,11 +157,12 @@ def save_rec_results(dataset, runner, topk):
 
 if __name__ == '__main__':
     init_parser = argparse.ArgumentParser(description='Model')
-    # init_parser.add_argument('--model_name', type=str, default='DIPSRec', help='Choose a model to run.')
-    init_parser.add_argument('--model_name', type=str, default='DIPSRec_VAE', help='Choose a model to run.')
+    init_parser.add_argument('--model_name', type=str, default='DIPSRec', help='Choose a model to run.')
+    # init_parser.add_argument('--model_name', type=str, default='DIPSRec_VAE', help='Choose a model to run.')
+    # init_parser.add_argument('--model_name', type=str, default='DIPSRec_Test', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='SVAN', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='SASRec', help='Choose a model to run.')
-    # init_parser.add_argument('--model_name', type=str, default='ComiRec', help='Choose a model to run.')
+    # init_parser.add_argument('--model_name', type=str, default='ContraRec', help='Choose a model to run.')
     init_parser.add_argument('--model_mode', type=str, default='', 
                              help='Model mode(i.e., suffix), for context-aware models to select "CTR" or "TopK" Ranking task;\
                                     for general/seq models to select Normal (no suffix, model_mode="") or "Impression" setting;\

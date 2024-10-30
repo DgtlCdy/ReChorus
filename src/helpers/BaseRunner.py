@@ -27,7 +27,7 @@ class BaseRunner(object):
         parser.add_argument('--test_epoch', type=int, default=10,
                             help='Print test results every test_epoch (-1 means no print).')
         # parser.add_argument('--early_stop', type=int, default=50,
-        parser.add_argument('--early_stop', type=int, default=100,
+        parser.add_argument('--early_stop', type=int, default=10,
                             help='The number of epochs when dev results drop continuously.')
         parser.add_argument('--lr', type=float, default=1e-3,
                             help='Learning rate.')
@@ -212,7 +212,10 @@ class BaseRunner(object):
 
             if 'kl' not in out_dict:
                 out_dict['kl'] = 0
-            loss = model.loss(out_dict) + 0.2 * out_dict['kl']
+                loss = model.loss(out_dict) + 0.2 * out_dict['kl']
+            else:
+                loss = model.loss(out_dict) + 0.2 * out_dict['kl']
+                # loss = model.loss(out_dict) / model.loss(out_dict).detach() + out_dict['kl'] / out_dict['kl'].detach()
             loss.backward()
             model.optimizer.step()
             loss_lst.append(loss.detach().cpu().data.numpy())
