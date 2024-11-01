@@ -75,7 +75,8 @@ def main():
         data_dict[phase] = model_name.Dataset(model, corpus, phase)
         data_dict[phase].prepare()
 
-    if init_args.model_name in ['DIPSRec', 'DIPSRec_VAE', 'DIPSRec_Deffusion', 'DIPSRec_Test']:
+    # 对DIPSRec系模型需要构建物品间相似度矩阵
+    if 'DIPSRec' in init_args.model_name:
         model.get_gram_matrix(data_dict['train'])
 
     # Run model
@@ -162,7 +163,8 @@ if __name__ == '__main__':
 
     is_handler_added = 0  # for logging repeat issue.
 
-    for model_name_default in ['FPMC', 'Caser', 'GRU4Rec', 'SASRec', 'TiSASRec', 'ComiRec', 'TiMiRec', 'DIPSRec']:
+    # for model_name_default in ['FPMC', 'Caser', 'GRU4Rec', 'SASRec', 'TiSASRec', 'ComiRec', 'TiMiRec', 'DIPSRec']:
+    for model_name_default in ['DIPSRec_TIP', 'DIPSRec_TIP_base', 'DIPSRec', 'TiSASRec']:
         for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
             init_parser = argparse.ArgumentParser(description='Model')
             init_parser.add_argument('--model_name', type=str, default=model_name_default, help='Choose a model to run.')
