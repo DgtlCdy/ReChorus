@@ -2,23 +2,24 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" TiSASRec
+""" DIPSRec_TI
 Reference:
     "Time Interval Aware Self-Attention for Sequential Recommendation"
     Jiacheng Li et al., WSDM'2020.
 CMD example:
-    python main.py --model_name TiSASRec --emb_size 64 --num_layers 1 --num_heads 1 --lr 1e-4 --l2 1e-6 \
+    python main.py --model_name DIPSRec_TI --emb_size 64 --num_layers 1 --num_heads 1 --lr 1e-4 --l2 1e-6 \
     --history_max 20 --dataset 'Grocery_and_Gourmet_Food'
 """
 
 import torch
 import torch.nn as nn
 import numpy as np
+import scipy.sparse as sp
 
 from models.BaseModel import SequentialModel
 
 
-class TiSASRec(SequentialModel):
+class DIPSRec_TI(SequentialModel):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads', 'time_max']
@@ -31,7 +32,7 @@ class TiSASRec(SequentialModel):
                             help='Number of self-attention layers.')
         parser.add_argument('--num_heads', type=int, default=4,
                             help='Number of attention heads.')
-        parser.add_argument('--time_max', type=int, default=512,
+        parser.add_argument('--time_max', type=int, default=5120,
                             help='Max time intervals.')
         return SequentialModel.parse_model_args(parser)
 
@@ -44,11 +45,14 @@ class TiSASRec(SequentialModel):
         self.max_time = args.time_max
         self.len_range = torch.from_numpy(np.arange(self.max_his)).to(self.device)
 
+        self.gram_matrix = 0
+        self.R = 0
+
         self.user_min_interval = dict()
         for u, user_df in corpus.all_df.groupby('user_id'):
             time_seqs = user_df['time'].values
             interval_matrix = np.abs(time_seqs[:, None] - time_seqs[None, :])
-            min_interval = np.min(interval_matrix + (interval_matrix <= 0) * 0xFFFFFFFF)
+            min_interval = np.min(interval_matrix + (interval_matrix <= 0) * 0xFFFF)
             self.user_min_interval[u] = min_interval
 
         self._define_params()
@@ -61,11 +65,55 @@ class TiSASRec(SequentialModel):
         self.t_k_embeddings = nn.Embedding(self.max_time + 1, self.emb_size)
         self.t_v_embeddings = nn.Embedding(self.max_time + 1, self.emb_size)
 
+        self.t_p_embeddings = nn.Embedding(self.max_time + 1, self.emb_size)
+
         self.transformer_block = nn.ModuleList([
             TimeIntervalTransformerLayer(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
                                          dropout=self.dropout, kq_same=False)
             for _ in range(self.num_layers)
         ])
+
+    def get_gram_matrix(self, dataset):
+        R = torch.zeros(self.user_num, self.item_num)
+        for (user_index, item_index) in zip(dataset.data['user_id'], dataset.data['item_id']):
+            R[user_index, item_index] = 1
+        self.R = R.to(self.device)
+
+        row_sum = np.array(R.sum(axis=1))
+        d_inv = np.power(row_sum, -0.5).flatten() #根号度分之一
+        d_inv[np.isposinf(d_inv)] = 0.
+        d_mat = sp.diags(d_inv) # 对角的度矩阵
+        norm_mat = d_mat.dot(R)
+        col_sum = np.array(R.sum(axis=0))
+        d_inv = np.power(col_sum, -0.5).flatten()
+        d_inv[np.isposinf(d_inv)] = 0.
+        d_mat = sp.diags(d_inv)
+        norm_mat = norm_mat.dot(d_mat.toarray()).astype(np.float32)
+        gram_matrix = norm_mat.T.dot(norm_mat)
+        gram_matrix =  torch.Tensor(gram_matrix).to(self.device)
+
+        # 方法0：取原生的相似度
+        # self.gram_matrix = gram_matrix
+        # return
+
+        # 方法1：取高阶相似度
+        # item_embedding_r2 = gram_matrix @ self.R.T
+        # gram_matrix_r2 = item_embedding_r2 @ item_embedding_r2.T
+        # gram_matrix_r2 =  torch.nn.functional.normalize(gram_matrix_r2)
+        # gram_matrix_r2 = gram_matrix_r2 / gram_matrix_r2.mean() * gram_matrix.mean()
+        # gram_matrix = gram_matrix * 0.5 + gram_matrix_r2 * 0.5
+        # self.gram_matrix = gram_matrix * 0.7 + gram_matrix_r2 * 0.3
+        # return
+
+        # 方法2：取top相似度
+        # 取top500的相似度去做
+        indices = torch.topk(gram_matrix, 500, dim=1).indices
+        gram_matrix_topk = torch.zeros_like(gram_matrix)
+        gram_matrix_topk.scatter_(1, indices, gram_matrix.gather(1, indices))
+
+        gram_matrix_topk = torch.nn.functional.normalize(gram_matrix_topk, p=2)
+        self.gram_matrix = gram_matrix_topk
+
 
     def forward(self, feed_dict):
         self.check_list = []
@@ -75,9 +123,14 @@ class TiSASRec(SequentialModel):
         user_min_t = feed_dict['user_min_intervals']  # [batch_size]
         lengths = feed_dict['lengths']  # [batch_size]
         batch_size, seq_len = i_history.shape
-
         valid_his = (i_history > 0).long()
-        his_vectors = self.i_embeddings(i_history)
+
+        # 0，不使用交互，传入自身Embedding直接作为兴趣
+        # his_vectors = self.i_embeddings(i_history)
+        # 1，直接拿相似度矩阵，哈达玛乘一个全1向量
+        interests_sim = self.gram_matrix[i_history]
+        interests_input = interests_sim @ self.i_embeddings.weight
+        his_vectors = interests_input
 
         # Position embedding
         position = (lengths[:, None] - self.len_range[None, :seq_len]) * valid_his
@@ -90,12 +143,17 @@ class TiSASRec(SequentialModel):
         inter_k = self.t_k_embeddings(interval_matrix)
         inter_v = self.t_v_embeddings(interval_matrix)
 
+        interval_p = interval_matrix[:, :, -1]
+        inter_p = self.t_p_embeddings(interval_p)
+
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32))
         attn_mask = torch.from_numpy(causality_mask).to(self.device)
+        attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
-            his_vectors = block(his_vectors, pos_k, pos_v, inter_k, inter_v, attn_mask)
+            # his_vectors = block(his_vectors, pos_k, pos_v, inter_k, inter_v, attn_mask)
+            his_vectors = block(his_vectors, pos_k, pos_v, inter_k, inter_v, attn_mask_full, inter_p)
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
         his_vector = his_vectors[torch.arange(batch_size), lengths - 1, :]
@@ -103,7 +161,14 @@ class TiSASRec(SequentialModel):
         # ↑ average pooling is shown to be more effective than the most recent embedding
 
         i_vectors = self.i_embeddings(i_ids)
-        prediction = (his_vector[:, None, :] * i_vectors).sum(-1)
+
+        # 输出侧
+        # 方法0：对最后一个输出embedding求内积
+        # prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
+        # 方法1：把所有的vectors放一起求内积均值
+        prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])
+        prediction = prediction.sum(-1).sum(-1)
+        prediction = prediction[:, :] / lengths[:, None]
         return {'prediction': prediction.view(batch_size, -1)}
 
     class Dataset(SequentialModel.Dataset):
@@ -185,16 +250,21 @@ class TimeIntervalTransformerLayer(nn.Module):
         self.layer_norm1 = nn.LayerNorm(d_model)
         self.dropout1 = nn.Dropout(dropout)
 
-        self.linear1 = nn.Linear(d_model, d_ff)
+        self.linear1 = nn.Linear(d_model * 2, d_ff)
         self.linear2 = nn.Linear(d_ff, d_model)
 
         self.layer_norm2 = nn.LayerNorm(d_model)
         self.dropout2 = nn.Dropout(dropout)
 
-    def forward(self, seq, pos_k, pos_v, inter_k, inter_v, mask):
+    def forward(self, seq, pos_k, pos_v, inter_k, inter_v, mask, inter_p):
         context = self.masked_attn_head(seq, seq, seq, pos_k, pos_v, inter_k, inter_v, mask)
         context = self.layer_norm1(self.dropout1(context) + seq)
-        output = self.linear1(context).relu()
+
+        # ouput = context + time_interval_info
+        # inter_p_zero = torch.zeros_like(inter_p).to('cuda')
+        output = torch.cat((context, inter_p), dim=-1)
+
+        output = self.linear1(output).relu()
         output = self.linear2(output)
         output = self.layer_norm2(self.dropout2(output) + context)
         return output

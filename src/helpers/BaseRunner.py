@@ -148,7 +148,7 @@ class BaseRunner(object):
 
                 # Test
                 # if self.test_epoch > 0 and epoch % self.test_epoch  == 0:
-                if True:
+                if False:
                     test_result = self.evaluate(data_dict['test'], self.topk[:1], self.metrics)
                     logging_str += ', test=({})'.format(utils.format_metric(test_result))
                     # utils.write_test_result(f'{logging_str}', f'{str(model)}_base.txt')

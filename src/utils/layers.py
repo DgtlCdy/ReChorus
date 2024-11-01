@@ -117,6 +117,40 @@ class TransformerLayer(nn.Module):
         output = self.layer_norm2(self.dropout2(output) + context)
         return output
 
+class TransformerLayer_TIP(nn.Module):
+    def __init__(self, d_model, d_ff, n_heads, dropout=0, kq_same=False):
+        super().__init__()
+        """
+        This is a Basic Block of Transformer. It contains one Multi-head attention object. 
+        Followed by layer norm and position wise feedforward net and dropout layer.
+        """
+        # Multi-Head Attention Block
+        self.masked_attn_head = MultiHeadAttention(d_model, n_heads, kq_same=kq_same)
+
+        # Two layer norm layer and two dropout layer
+        self.layer_norm1 = nn.LayerNorm(d_model)
+        self.dropout1 = nn.Dropout(dropout)
+
+        self.linear1 = nn.Linear(d_model * 2, d_ff)
+        self.linear2 = nn.Linear(d_ff, d_model)
+
+        self.layer_norm2 = nn.LayerNorm(d_model)
+        self.layer_norm_t = nn.LayerNorm(d_model)
+        self.dropout2 = nn.Dropout(dropout)
+
+    def forward(self, seq, t_ebds, mask=None):
+        context = self.masked_attn_head(seq, seq, seq, mask)
+        context = self.layer_norm1(self.dropout1(context) + seq)
+
+        t_ebds = self.layer_norm_t(t_ebds)
+        # inter_p_zero = torch.zeros_like(t_ebds)
+        output = torch.cat((context, t_ebds), dim=-1)
+        # output = context + t_ebds
+
+        output = self.linear1(output).relu()
+        output = self.linear2(output)
+        output = self.layer_norm2(self.dropout2(output) + context)
+        return output
 
 class TransformerLayer_VAE(nn.Module):
     def __init__(self, d_model, d_ff, n_heads, dropout=0, kq_same=False):
