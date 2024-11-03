@@ -160,8 +160,8 @@ def save_rec_results(dataset, runner, topk):
     logging.info("{} Prediction results saved!".format(dataset.phase))
 
 if __name__ == '__main__':
-    # dataset_default = 'Grocery_and_Gourmet_Food'
-    dataset_default = 'ML_1M_TOPK'
+    dataset_default = 'Grocery_and_Gourmet_Food'
+    # dataset_default = 'ML_1M_TOPK'
 
     init_parser = argparse.ArgumentParser(description='Model')
     init_parser.add_argument('--model_name', type=str, default='DIPSRec_TIP', help='Choose a model to run.')

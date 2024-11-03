@@ -29,7 +29,7 @@ class DIPSRec_TIPBase(object):
                             help='Number of self-attention layers.')
         parser.add_argument('--num_heads', type=int, default=4,
                             help='Number of attention heads.')
-        parser.add_argument('--time_max', type=int, default=512,
+        parser.add_argument('--time_max', type=int, default=128,
                             help='Max time intervals.')
         return parser        
 
@@ -69,7 +69,8 @@ class DIPSRec_TIPBase(object):
         self.i_embeddings = nn.Embedding(self.item_num, self.emb_size)
         self.p_embeddings = nn.Embedding(self.max_his + 1, self.emb_size)
 
-        self.t_embeddings = nn.Embedding(self.max_time + 2, self.emb_size)
+        self.t_embeddings_sa = nn.Embedding(self.max_time + 2, self.emb_size)
+        self.t_embeddings_ffn = nn.Embedding(self.max_time + 2, self.emb_size)
 
         self.transformer_block = nn.ModuleList([
             layers.TransformerLayer_TIP(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
@@ -121,14 +122,16 @@ class DIPSRec_TIPBase(object):
         # 将时间间隔转化为时间Embedding
         convert_pow = torch.log(torch.tensor(self.max_time)) / torch.log(torch.tensor(self.max_timestamp_converted))
         idx = torch.pow(current_interval, convert_pow).int()
-        t_ebds = self.t_embeddings(idx)
+        t_ebds_sa = self.t_embeddings_sa(idx)
+        t_ebds_ffn = self.t_embeddings_ffn(idx)
 
         # Position embedding
         # lengths:  [4, 2, 5]
         # position: [[4, 3, 2, 1, 0], [2, 1, 0, 0, 0], [5, 4, 3, 2, 1]]
         position = (lengths[:, None] - self.len_range[None, :seq_len]) * valid_his
         pos_vectors = self.p_embeddings(position)
-        his_vectors = his_vectors + pos_vectors
+        his_vectors = his_vectors + pos_vectors + t_ebds_sa
+        # his_vectors = his_vectors + pos_vectors
 
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系
@@ -136,7 +139,8 @@ class DIPSRec_TIPBase(object):
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
-            his_vectors = block(his_vectors, t_ebds, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            his_vectors = block(his_vectors, t_ebds_ffn, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            # his_vectors = block(his_vectors, t_ebds_sa, attn_mask_full) # transformer的输出维度和输入维度是一样的
             # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 

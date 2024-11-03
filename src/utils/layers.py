@@ -131,6 +131,7 @@ class TransformerLayer_TIP(nn.Module):
         self.layer_norm1 = nn.LayerNorm(d_model)
         self.dropout1 = nn.Dropout(dropout)
 
+        # self.linear1 = nn.Linear(d_model, d_ff)
         self.linear1 = nn.Linear(d_model * 2, d_ff)
         self.linear2 = nn.Linear(d_ff, d_model)
 
@@ -143,10 +144,9 @@ class TransformerLayer_TIP(nn.Module):
         context = self.layer_norm1(self.dropout1(context) + seq)
 
         t_ebds = self.layer_norm_t(t_ebds)
-        # inter_p_zero = torch.zeros_like(t_ebds)
         output = torch.cat((context, t_ebds), dim=-1)
-        # output = context + t_ebds
 
+        # output = self.linear1(context).relu()
         output = self.linear1(output).relu()
         output = self.linear2(output)
         output = self.layer_norm2(self.dropout2(output) + context)
