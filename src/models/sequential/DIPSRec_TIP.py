@@ -120,8 +120,13 @@ class DIPSRec_TIPBase(object):
         current_interval = max_values.unsqueeze(-1).expand_as(t_history) - t_history
 
         # 将时间间隔转化为时间Embedding
+        # 方案1：指数
         convert_pow = torch.log(torch.tensor(self.max_time)) / torch.log(torch.tensor(self.max_timestamp_converted))
         idx = torch.pow(current_interval, convert_pow).int()
+        # 方案2：线性
+        convert_line = torch.tensor(self.max_time) / torch.tensor(self.max_timestamp_converted)
+        idx = (current_interval * convert_line).int()
+
         t_ebds_sa = self.t_embeddings_sa(idx)
         t_ebds_ffn = self.t_embeddings_ffn(idx)
 
@@ -130,8 +135,9 @@ class DIPSRec_TIPBase(object):
         # position: [[4, 3, 2, 1, 0], [2, 1, 0, 0, 0], [5, 4, 3, 2, 1]]
         position = (lengths[:, None] - self.len_range[None, :seq_len]) * valid_his
         pos_vectors = self.p_embeddings(position)
-        his_vectors = his_vectors + pos_vectors + t_ebds_sa
+
         # his_vectors = his_vectors + pos_vectors
+        his_vectors = his_vectors + pos_vectors + t_ebds_sa
 
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系
