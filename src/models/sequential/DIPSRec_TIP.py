@@ -120,12 +120,16 @@ class DIPSRec_TIPBase(object):
         current_interval = max_values.unsqueeze(-1).expand_as(t_history) - t_history
 
         # 将时间间隔转化为时间Embedding
-        # 方案1：指数
-        convert_pow = torch.log(torch.tensor(self.max_time)) / torch.log(torch.tensor(self.max_timestamp_converted))
-        idx = torch.pow(current_interval, convert_pow).int()
-        # 方案2：线性
-        convert_line = torch.tensor(self.max_time) / torch.tensor(self.max_timestamp_converted)
-        idx = (current_interval * convert_line).int()
+        # # 方案1：指数
+        # convert_pow = torch.log(torch.tensor(self.max_time)) / torch.log(torch.tensor(self.max_timestamp_converted))
+        # idx = torch.pow(current_interval, convert_pow).int()
+        # # 方案2：线性
+        # convert_line = torch.tensor(self.max_time) / torch.tensor(self.max_timestamp_converted)
+        # idx = (current_interval * convert_line).int()
+        # 方案3：对数
+        convert_log_a = torch.log(torch.tensor(self.max_time + 1)) / torch.tensor(self.max_timestamp_converted)
+        # convert_log = torch.exp(convert_log_a), convert_log_a = torch.log(convert_log)
+        idx = torch.log(current_interval + 1) / convert_log_a
 
         t_ebds_sa = self.t_embeddings_sa(idx)
         t_ebds_ffn = self.t_embeddings_ffn(idx)

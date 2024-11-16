@@ -164,12 +164,12 @@ if __name__ == '__main__':
     # dataset_default = 'ML_1M_TOPK'
 
     init_parser = argparse.ArgumentParser(description='Model')
-    init_parser.add_argument('--model_name', type=str, default='DIPSRec_TIP', help='Choose a model to run.')
+    # init_parser.add_argument('--model_name', type=str, default='DIPSRec_TIP', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='DIPSRec_VAE', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='DIPSRec_Test', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='SVAN', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='SASRec', help='Choose a model to run.')
-    # init_parser.add_argument('--model_name', type=str, default='TiSASRec', help='Choose a model to run.')
+    init_parser.add_argument('--model_name', type=str, default='TiSASRec', help='Choose a model to run.')
     init_parser.add_argument('--model_mode', type=str, default='', 
                              help='Model mode(i.e., suffix), for context-aware models to select "CTR" or "TopK" Ranking task;\
                                     for general/seq models to select Normal (no suffix, model_mode="") or "Impression" setting;\
