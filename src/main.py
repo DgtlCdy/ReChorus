@@ -75,7 +75,8 @@ def main():
         data_dict[phase] = model_name.Dataset(model, corpus, phase)
         data_dict[phase].prepare()
 
-    if init_args.model_name in ['DIPSRec', 'DIPSRec_VAE', 'DIPSRec_Deffusion', 'DIPSRec_Test']:
+    # 对DIPSRec系模型需要构建物品间相似度矩阵
+    if 'DIPSRec' in init_args.model_name:
         model.get_gram_matrix(data_dict['train'])
 
     # Run model
@@ -91,6 +92,9 @@ def main():
     logging.info(os.linesep + 'Dev  After Training: ' + eval_res)
     eval_res = runner.print_res(data_dict['test'])
     logging.info(os.linesep + 'Test After Training: ' + eval_res)
+
+    utils.write_test_result(f'{init_args.model_name}+{args.dataset}\'s test result: {eval_res}.', f'test_result.txt')
+
     if args.save_final_results==1: # save the prediction results
         save_rec_results(data_dict['dev'], runner, 100)
         save_rec_results(data_dict['test'], runner, 100)
@@ -156,13 +160,16 @@ def save_rec_results(dataset, runner, topk):
     logging.info("{} Prediction results saved!".format(dataset.phase))
 
 if __name__ == '__main__':
+    dataset_default = 'Grocery_and_Gourmet_Food'
+    # dataset_default = 'ML_1M_TOPK'
+
     init_parser = argparse.ArgumentParser(description='Model')
-    init_parser.add_argument('--model_name', type=str, default='DIPSRec', help='Choose a model to run.')
+    # init_parser.add_argument('--model_name', type=str, default='DIPSRec_TIP', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='DIPSRec_VAE', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='DIPSRec_Test', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='SVAN', help='Choose a model to run.')
     # init_parser.add_argument('--model_name', type=str, default='SASRec', help='Choose a model to run.')
-    # init_parser.add_argument('--model_name', type=str, default='ContraRec', help='Choose a model to run.')
+    init_parser.add_argument('--model_name', type=str, default='TiSASRec', help='Choose a model to run.')
     init_parser.add_argument('--model_mode', type=str, default='', 
                              help='Model mode(i.e., suffix), for context-aware models to select "CTR" or "TopK" Ranking task;\
                                     for general/seq models to select Normal (no suffix, model_mode="") or "Impression" setting;\
@@ -184,7 +191,7 @@ if __name__ == '__main__':
     # Args
     parser = argparse.ArgumentParser(description='')
     parser = parse_global_args(parser)
-    parser = reader_name.parse_data_args(parser)
+    parser = reader_name.parse_data_args(parser, dataset_default)
     parser = runner_name.parse_runner_args(parser)
     parser = model_name.parse_model_args(parser)
     args, extras = parser.parse_known_args()

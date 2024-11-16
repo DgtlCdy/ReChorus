@@ -44,7 +44,7 @@ class BaseRunner(object):
         parser.add_argument('--pin_memory', type=int, default=0,
                             help='pin_memory in DataLoader')
         # parser.add_argument('--topk', type=str, default='5,10,20,50',
-        parser.add_argument('--topk', type=str, default='10,20,50',
+        parser.add_argument('--topk', type=str, default='10,20',
                             help='The number of items recommended to each user.')
         parser.add_argument('--metric', type=str, default='NDCG,HR',
                             help='metrics: NDCG, HR')
@@ -148,11 +148,11 @@ class BaseRunner(object):
 
                 # Test
                 # if self.test_epoch > 0 and epoch % self.test_epoch  == 0:
-                if True:
+                if False:
                     test_result = self.evaluate(data_dict['test'], self.topk[:1], self.metrics)
                     logging_str += ', test=({})'.format(utils.format_metric(test_result))
                     # utils.write_test_result(f'{logging_str}', f'{str(model)}_base.txt')
-                    utils.write_test_result(f'{logging_str}', f'VKDESeq_base.txt')
+                    # utils.write_test_result(f'{logging_str}', f'test_result.txt')
                 testing_time = self._check_time()
                 logging_str += ' [{:<.1f} s]'.format(testing_time)
 

@@ -12,11 +12,14 @@ from utils import utils
 
 class BaseReader(object):
     @staticmethod
-    def parse_data_args(parser):
+    def parse_data_args(parser, dataset_default='Beauty'):
         parser.add_argument('--path', type=str, default='data/',
                             help='Input data dir.')
-        parser.add_argument('--dataset', type=str, default='Grocery_and_Gourmet_Food',
-        # parser.add_argument('--dataset', type=str, default='MovieLens_1M',
+        parser.add_argument('--dataset', type=str, default=dataset_default,
+        # parser.add_argument('--dataset', type=str, default='Beauty',
+        # parser.add_argument('--dataset', type=str, default='Video_Games',
+        # parser.add_argument('--dataset', type=str, default='Grocery_and_Gourmet_Food',
+        # parser.add_argument('--dataset', type=str, default='ML_1M_TOPK',
                             help='Choose a dataset.')
         parser.add_argument('--sep', type=str, default='\t',
                             help='sep of csv file.')
@@ -46,8 +49,7 @@ class BaseReader(object):
         self.data_df = dict()
         for key in ['train', 'dev', 'test']:
             MAIN_PATH = 'C:/codes/ReChorus'
-            # self.data_df[key] = pd.read_csv(os.path.join(self.prefix, self.dataset, key + '.csv'), sep=self.sep).reset_index(drop=True).sort_values(by = ['user_id','time'])
-            self.data_df[key] = pd.read_csv(os.path.join(self.prefix, self.dataset, 'ML_1MCTR', key + '.csv'),
+            self.data_df[key] = pd.read_csv(os.path.join(self.prefix, self.dataset, key + '.csv'), \
                                             sep=self.sep).reset_index(drop=True).sort_values(by = ['user_id','time'])
             self.data_df[key] = utils.eval_list_columns(self.data_df[key])
 
