@@ -132,19 +132,19 @@ class TransformerLayer_TIP(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
 
         # self.linear1 = nn.Linear(d_model, d_ff)
-        self.linear1 = nn.Linear(d_model * 2, d_ff)
+        self.linear1 = nn.Linear(d_model * 3, d_ff)
         self.linear2 = nn.Linear(d_ff, d_model)
 
         self.layer_norm2 = nn.LayerNorm(d_model)
         self.layer_norm_t = nn.LayerNorm(d_model)
         self.dropout2 = nn.Dropout(dropout)
 
-    def forward(self, seq, t_ebds, mask=None):
+    def forward(self, seq, t_ebds_m, t_ebds_p, mask=None):
         context = self.masked_attn_head(seq, seq, seq, mask)
         context = self.layer_norm1(self.dropout1(context) + seq)
 
-        t_ebds = self.layer_norm_t(t_ebds)
-        output = torch.cat((context, t_ebds), dim=-1)
+        # t_ebds = self.layer_norm_t(t_ebds_m + t_ebds_p)
+        output = torch.cat([context, t_ebds_m, t_ebds_p], dim=-1)
 
         # output = self.linear1(context).relu()
         output = self.linear1(output).relu()

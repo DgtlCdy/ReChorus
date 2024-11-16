@@ -72,9 +72,8 @@ class TiDIPSRecBase(object):
         self.t_embeddings_gm = nn.Embedding(self.max_time + 2, self.emb_size)
         self.t_embeddings_gp_k = nn.Embedding(self.max_time + 2, self.emb_size)
         self.t_embeddings_gp_v = nn.Embedding(self.max_time + 2, self.emb_size)
-
-        self.t_embeddings_sa = nn.Embedding(self.max_time + 2, self.emb_size)
-        self.t_embeddings_ffn = nn.Embedding(self.max_time + 2, self.emb_size)
+        # self.t_embeddings_sa = nn.Embedding(self.max_time + 2, self.emb_size)
+        # self.t_embeddings_ffn = nn.Embedding(self.max_time + 2, self.emb_size)
 
         self.transformer_block = nn.ModuleList([
             layers.TransformerLayer_TIP(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
@@ -124,20 +123,32 @@ class TiDIPSRecBase(object):
         current_interval = max_values.unsqueeze(-1).expand_as(t_history) - t_history
 
         # 将时间间隔转化为时间Embedding
-        # # 方案1：指数
+        # # 方案1：小于1的幂次
         # convert_pow = torch.log(torch.tensor(self.max_time)) / torch.log(torch.tensor(self.max_timestamp_converted))
         # idx = torch.pow(current_interval, convert_pow).int()
         # # 方案2：线性
         # convert_line = torch.tensor(self.max_time) / torch.tensor(self.max_timestamp_converted)
         # idx = (current_interval * convert_line).int()
         # 方案3：对数
-        convert_log_a = torch.log(torch.tensor(self.max_time + 1)) / torch.tensor(self.max_timestamp_converted)
+        convert_log_a = torch.pow(torch.tensor(self.max_timestamp_converted), torch.tensor(1. / self.max_time))
         # convert_log = torch.exp(convert_log_a), convert_log_a = torch.log(convert_log)
-        idx = torch.log(current_interval + 1) / convert_log_a
+        idx = (torch.log(current_interval + 1) / torch.log(convert_log_a)).int()
 
         # 获取单调和周期性的时间Embedding
-        t_ebds_m = self.t_embeddings_gm(idx)
-        p_idx = range(idx)
+        t_ebds_m = self.t_embeddings_gm(idx) # 单调部分完成，但还没有卷积的部分
+        t_ebds_p = torch.zeros_like(his_vectors) # 周期部分还需要后面的注意力部分赋值
+
+        scores_g = his_vectors @ self.t_embeddings_gp_k(torch.Tensor(range(i_idx)).int().to(torch.device('cuda'))).T / (self.emb_size ** 0.5)
+        for i in range(his_vectors.size(0)):
+            for j in range(lengths[i]):
+                # i_vector = his_vectors[i, j, :]
+                i_idx = idx[i, j]
+                # 基于注意力，将得到的时间Embedding传给t_ebds_p
+                # scores = i_vector @ self.t_embeddings_gp_k(torch.Tensor(range(i_idx)).int().to(torch.device('cuda'))).T / (self.emb_size ** 0.5)
+                scores = scores_g[i, j, :i_idx]
+                scores = torch.softmax(scores, dim=-1)
+                t_ebds_p[i, j, :]  = scores * self.t_embeddings_gp_k(torch.Tensor(range(i_idx)).int().to(torch.device('cuda')))
+
 
         # Position embedding
         # lengths:  [4, 2, 5]
@@ -146,7 +157,8 @@ class TiDIPSRecBase(object):
         pos_vectors = self.p_embeddings(position)
 
         # his_vectors = his_vectors + pos_vectors
-        his_vectors = his_vectors + pos_vectors + t_ebds_sa
+        # his_vectors = his_vectors + pos_vectors + t_ebds_sa
+        his_vectors = his_vectors + pos_vectors + t_ebds_m + t_ebds_p
 
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系
@@ -154,8 +166,7 @@ class TiDIPSRecBase(object):
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
-            his_vectors = block(his_vectors, t_ebds_ffn, attn_mask_full) # transformer的输出维度和输入维度是一样的
-            # his_vectors = block(his_vectors, t_ebds_sa, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            his_vectors = block(his_vectors, t_ebds_m, t_ebds_p, attn_mask_full) # transformer的输出维度和输入维度是一样的
             # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
