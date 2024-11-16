@@ -163,9 +163,11 @@ if __name__ == '__main__':
 
     is_handler_added = 0  # for logging repeat issue.
 
-    for model_name_default in ['FPMC', 'Caser', 'GRU4Rec', 'SASRec', 'TiSASRec', 'ComiRec', 'TiMiRec', 'DIPSRec', 'DIPSRec_TIP']:
+    # for model_name_default in ['FPMC', 'Caser', 'GRU4Rec', 'SASRec', 'TiSASRec', 'ComiRec', 'TiMiRec', 'DIPSRec', 'DIPSRec_TIP']:
     # for model_name_default in ['DIPSRec_TIP', 'DIPSRec_TIP_base', 'DIPSRec', 'TiSASRec']:
     # for model_name_default in ['DIPSRec_TIP']:
+    for model_name_default in ['SASRec', 'DIPSRec_1m', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
+    # for model_name_default in ['DIPSRec']:
         for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
             init_parser = argparse.ArgumentParser(description='Model')
             init_parser.add_argument('--model_name', type=str, default=model_name_default, help='Choose a model to run.')
