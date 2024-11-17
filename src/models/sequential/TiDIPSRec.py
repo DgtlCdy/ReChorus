@@ -136,22 +136,28 @@ class TiDIPSRecBase(object):
 
         # 获取单调和周期性的时间Embedding
         t_ebds_m = self.t_embeddings_gm(idx) # 单调部分完成，但还没有卷积的部分
-        t_ebds_p = torch.zeros_like(his_vectors) # 周期部分还需要后面的注意力部分赋值
 
         idx_g = torch.Tensor(range(self.max_time)).int().to(torch.device('cuda'))
         scores_g = his_vectors @ self.t_embeddings_gp_k(idx_g).T / (self.emb_size ** 0.5)
-        scores_g_weighted = torch.zeros_like(scores_g)
-        for i in range(his_vectors.size(0)):
-            for j in range(lengths[i]):
-                # i_vector = his_vectors[i, j, :]
-                i_idx = idx[i, j]
-                idx_v = torch.Tensor(range(i_idx)).int().to(torch.device('cuda'))
-                # 基于注意力，将得到的时间Embedding传给t_ebds_p
-                scores = scores_g[i, j, :i_idx]
-                scores_g_weighted[i, j, :i_idx] = torch.softmax(scores, dim=-1)
-                # scores = torch.softmax(scores, dim=-1)
-                # t_ebds_p[i, j, :]  = scores @ self.t_embeddings_gp_v(idx_v)
-        t_ebds_p = scores_g_weighted @ self.t_embeddings_gp_v(idx_g)
+        # scores_g_weighted = torch.softmax(scores_g, dim=-1)
+        # scores_g_weighted = ((scores_g + 1) / 128) - (1/128)
+        scores_valid = (scores_g != 0).long()
+        scores_g_weighted = torch.softmax(scores_g, dim=-1) * scores_valid
+        # scores_g_weighted = torch.norm(scores_g_weighted, p=1)
+        t_ebds_p = (scores_g_weighted @ self.t_embeddings_gp_v(idx_g)) 
+
+        # scores_g_weighted = torch.zeros_like(scores_g)
+        # for i in range(his_vectors.size(0)):
+        #     for j in range(lengths[i]):
+        #         # i_vector = his_vectors[i, j, :]
+        #         i_idx = idx[i, j]
+        #         idx_v = torch.Tensor(range(i_idx)).int().to(torch.device('cuda'))
+        #         # 基于注意力，将得到的时间Embedding传给t_ebds_p
+        #         scores = scores_g[i, j, :i_idx]
+        #         scores_g_weighted[i, j, :i_idx] = torch.softmax(scores, dim=-1)
+        #         # scores = torch.softmax(scores, dim=-1)
+        #         # t_ebds_p[i, j, :]  = scores @ self.t_embeddings_gp_v(idx_v)
+        # t_ebds_p = scores_g_weighted @ self.t_embeddings_gp_v(idx_g)
 
         # Position embedding
         # lengths:  [4, 2, 5]
