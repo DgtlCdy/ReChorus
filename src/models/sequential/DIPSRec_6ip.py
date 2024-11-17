@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" DIPSRec
+""" DIPSRec_6ip
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class DIPSRecBase(object):
+class DIPSRec_6ipBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -130,14 +130,14 @@ class DIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class DIPSRec(SequentialModel, DIPSRecBase):
+class DIPSRec_6ip(SequentialModel, DIPSRec_6ipBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRecBase.parse_model_args(parser)
+        parser = DIPSRec_6ipBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -187,18 +187,18 @@ class DIPSRec(SequentialModel, DIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = DIPSRecBase.forward(self, feed_dict)
+        out_dict = DIPSRec_6ipBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class DIPSRecImpression(ImpressionSeqModel, DIPSRecBase):
+class DIPSRec_6ipImpression(ImpressionSeqModel, DIPSRec_6ipBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRecBase.parse_model_args(parser)
+        parser = DIPSRec_6ipBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -206,4 +206,4 @@ class DIPSRecImpression(ImpressionSeqModel, DIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return DIPSRecBase.forward(self, feed_dict)
+        return DIPSRec_6ipBase.forward(self, feed_dict)
