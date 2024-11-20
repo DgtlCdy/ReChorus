@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" TiDIPSRec
+""" TiDIPSRec_32
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class TiDIPSRecBase(object):
+class TiDIPSRec_32Base(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -29,7 +29,7 @@ class TiDIPSRecBase(object):
                             help='Number of self-attention layers.')
         parser.add_argument('--num_heads', type=int, default=4,
                             help='Number of attention heads.')
-        parser.add_argument('--time_max', type=int, default=128,
+        parser.add_argument('--time_max', type=int, default=32,
                             help='Max time intervals.')
         return parser        
 
@@ -210,14 +210,14 @@ class TiDIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class TiDIPSRec(SequentialModel, TiDIPSRecBase):
+class TiDIPSRec_32(SequentialModel, TiDIPSRec_32Base):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = TiDIPSRec_32Base.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -267,18 +267,18 @@ class TiDIPSRec(SequentialModel, TiDIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = TiDIPSRecBase.forward(self, feed_dict)
+        out_dict = TiDIPSRec_32Base.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
+class TiDIPSRec_32Impression(ImpressionSeqModel, TiDIPSRec_32Base):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = TiDIPSRec_32Base.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -286,4 +286,4 @@ class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return TiDIPSRecBase.forward(self, feed_dict)
+        return TiDIPSRec_32Base.forward(self, feed_dict)
