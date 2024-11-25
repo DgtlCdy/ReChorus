@@ -3,7 +3,7 @@
 # @Email   : THUwangcy@gmail.com
 # 这个用三角函数建模
 
-""" TiDIPSRec_sin
+""" TiDIPSRec_sin_tm
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -21,7 +21,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class TiDIPSRec_sinBase(object):
+class TiDIPSRec_sin_tmBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -32,7 +32,7 @@ class TiDIPSRec_sinBase(object):
                             help='Number of self-attention layers.')
         parser.add_argument('--num_heads', type=int, default=4,
                             help='Number of attention heads.')
-        parser.add_argument('--time_max', type=int, default=256,
+        parser.add_argument('--time_max', type=int, default=128,
                             help='Max time intervals.')
         return parser        
 
@@ -81,7 +81,7 @@ class TiDIPSRec_sinBase(object):
         self.t_embeddings_sin = nn.Embedding(1, self.emb_size_p)
 
         self.transformer_block = nn.ModuleList([
-            layers.TransformerLayer_sin(d_model=self.emb_size + self.emb_size_p * 2, d_ff=self.emb_size, n_heads=self.num_heads,
+            layers.TransformerLayer_sin(d_model=self.emb_size * 2, d_ff=self.emb_size, n_heads=self.num_heads,
                                     dropout=self.dropout, kq_same=False)
             for _ in range(self.num_layers)
         ])
@@ -128,42 +128,42 @@ class TiDIPSRec_sinBase(object):
         t_ebd_sin = torch.sin(self.t_embeddings_sin(torch.tensor(0).int().to(self.device)) * t_history_abs.unsqueeze(-1))
         t_ebd_sin_norm = torch.cat([t_ebd_cos, t_ebd_sin], dim=-1) / (self.emb_size_p**0.5)
 
-        # 获取每一个交互离最新交互的时间间隔current_interval
-        t_history = t_history
-        t_history = (t_history - self.min_timestamp).relu()
-        t_history = t_history / self.min_interval
-        max_values, _ = torch.max(t_history, dim=1)
-        current_interval = max_values.unsqueeze(-1).expand_as(t_history) - t_history
+        # # 获取每一个交互离最新交互的时间间隔current_interval
+        # t_history = t_history
+        # t_history = (t_history - self.min_timestamp).relu()
+        # t_history = t_history / self.min_interval
+        # max_values, _ = torch.max(t_history, dim=1)
+        # current_interval = max_values.unsqueeze(-1).expand_as(t_history) - t_history
 
 
-        # 将时间间隔转化为时间Embedding
-        # # 方案1：小于1的幂次
-        # convert_pow = torch.log(torch.tensor(self.max_time)) / torch.log(torch.tensor(self.max_timestamp_converted))
-        # idx = torch.pow(current_interval, convert_pow).int()
-        # # 方案2：线性
-        # convert_line = torch.tensor(self.max_time) / torch.tensor(self.max_timestamp_converted)
-        # idx = (current_interval * convert_line).int()
-        # 方案3：对数
-        convert_log_a = torch.pow(torch.tensor(self.max_timestamp_converted), torch.tensor(1. / self.max_time))
-        # convert_log = torch.exp(convert_log_a), convert_log_a = torch.log(convert_log)
-        idx = (torch.log(current_interval + 1) / torch.log(convert_log_a)).int()
+        # # 将时间间隔转化为时间Embedding
+        # # # 方案1：小于1的幂次
+        # # convert_pow = torch.log(torch.tensor(self.max_time)) / torch.log(torch.tensor(self.max_timestamp_converted))
+        # # idx = torch.pow(current_interval, convert_pow).int()
+        # # # 方案2：线性
+        # # convert_line = torch.tensor(self.max_time) / torch.tensor(self.max_timestamp_converted)
+        # # idx = (current_interval * convert_line).int()
+        # # 方案3：对数
+        # convert_log_a = torch.pow(torch.tensor(self.max_timestamp_converted), torch.tensor(1. / self.max_time))
+        # # convert_log = torch.exp(convert_log_a), convert_log_a = torch.log(convert_log)
+        # idx = (torch.log(current_interval + 1) / torch.log(convert_log_a)).int()
 
         # 获取单调和周期性的时间Embedding
-        t_ebds_m = self.t_embeddings_gm(idx) # 单调部分完成，但还没有卷积的部分
+        # t_ebds_m = self.t_embeddings_gm(idx) # 单调部分完成，但还没有卷积的部分
 
-        idx_g = torch.Tensor(range(self.max_time)).int().to(torch.device('cuda'))
-        scores_g = his_vectors @ self.t_embeddings_gp_k(idx_g).T / (self.emb_size ** 0.5)
-        scores_valid = torch.zeros_like(scores_g)
-        for i in range(his_vectors.size(0)):
-            for j in range(lengths[i]):
-                scores_valid[i, j, :idx[i, j]] = 1
-        # 这个方法出现未知的cuda问题，暂时不用
-        # valid_indice = torch.tril(torch.ones(128, 128), diagonal=0).int().to(self.device)
-        # scores_valid = valid_indice[idx]
+        # idx_g = torch.Tensor(range(self.max_time)).int().to(torch.device('cuda'))
+        # scores_g = his_vectors @ self.t_embeddings_gp_k(idx_g).T / (self.emb_size ** 0.5)
+        # scores_valid = torch.zeros_like(scores_g)
+        # for i in range(his_vectors.size(0)):
+        #     for j in range(lengths[i]):
+        #         scores_valid[i, j, :idx[i, j]] = 1
+        # # 这个方法出现未知的cuda问题，暂时不用
+        # # valid_indice = torch.tril(torch.ones(128, 128), diagonal=0).int().to(self.device)
+        # # scores_valid = valid_indice[idx]
 
-        scores_g_weighted = torch.softmax(scores_g, dim=-1) * scores_valid
-        scores_g_weighted = torch.nn.functional.normalize(scores_g_weighted, p=1, dim=-1)
-        t_ebds_p = scores_g_weighted @ self.t_embeddings_gp_v(idx_g)
+        # scores_g_weighted = torch.softmax(scores_g, dim=-1) * scores_valid
+        # scores_g_weighted = torch.nn.functional.normalize(scores_g_weighted, p=1, dim=-1)
+        # t_ebds_p = scores_g_weighted @ self.t_embeddings_gp_v(idx_g)
         # t_ebds_p = scores_g_weighted
 
 
@@ -177,18 +177,16 @@ class TiDIPSRec_sinBase(object):
         # his_vectors = his_vectors + pos_vectors
         # his_vectors = his_vectors + pos_vectors + t_ebds_sa
         # his_vectors = his_vectors + pos_vectors + t_ebds_m + t_ebd_sin
-        # his_vectors = (his_vectors + pos_vectors + t_ebd_sin_norm).float()
-        his_vectors = torch.cat([his_vectors + pos_vectors, t_ebd_sin_norm], dim=-1).float()
+        his_vectors = (his_vectors + pos_vectors + t_ebd_sin_norm).float()
 
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系
         attn_mask = torch.from_numpy(causality_mask).to(torch.device('cuda'))
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
-        t_ebds_zero = torch.zeros_like(t_ebds_m).float()
-
+        t_ebd_zero = torch.zeros_like(his_vectors).float()
         for block in self.transformer_block:
-            his_vectors = block(his_vectors, t_ebds_m, t_ebds_p, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            his_vectors = block(his_vectors, t_ebd_zero, t_ebd_zero, attn_mask_full) # transformer的输出维度和输入维度是一样的
             # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
@@ -218,14 +216,14 @@ class TiDIPSRec_sinBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class TiDIPSRec_sin(SequentialModel, TiDIPSRec_sinBase):
+class TiDIPSRec_sin_tm(SequentialModel, TiDIPSRec_sin_tmBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRec_sinBase.parse_model_args(parser)
+        parser = TiDIPSRec_sin_tmBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -275,18 +273,18 @@ class TiDIPSRec_sin(SequentialModel, TiDIPSRec_sinBase):
 
 
     def forward(self, feed_dict):
-        out_dict = TiDIPSRec_sinBase.forward(self, feed_dict)
+        out_dict = TiDIPSRec_sin_tmBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class TiDIPSRec_sinImpression(ImpressionSeqModel, TiDIPSRec_sinBase):
+class TiDIPSRec_sin_tmImpression(ImpressionSeqModel, TiDIPSRec_sin_tmBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRec_sinBase.parse_model_args(parser)
+        parser = TiDIPSRec_sin_tmBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -294,4 +292,4 @@ class TiDIPSRec_sinImpression(ImpressionSeqModel, TiDIPSRec_sinBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return TiDIPSRec_sinBase.forward(self, feed_dict)
+        return TiDIPSRec_sin_tmBase.forward(self, feed_dict)

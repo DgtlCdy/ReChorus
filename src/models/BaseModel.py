@@ -179,7 +179,7 @@ class GeneralModel(BaseModel):
     def parse_model_args(parser):
         parser.add_argument('--num_neg', type=int, default=1,
                             help='The number of negative items during training.')
-        parser.add_argument('--dropout', type=float, default=0,
+        parser.add_argument('--dropout', type=float, default=0.5,
                             help='Dropout probability for each deep layer')
         parser.add_argument('--test_all', type=int, default=0,
                             help='Whether testing on all the items.')
