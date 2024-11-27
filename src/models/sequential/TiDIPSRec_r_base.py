@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" TiDIPSRec_r
+""" TiDIPSRec_r_base
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class TiDIPSRec_rBase(object):
+class TiDIPSRec_r_baseBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -80,10 +80,6 @@ class TiDIPSRec_rBase(object):
                                     dropout=self.dropout, kq_same=False)
             for _ in range(self.num_layers)
         ])
-
-        self.time_weight_max = 128
-        self.time_rotate_weight = nn.Linear(self.emb_size, self.time_weight_max)
-        
 
     def forward(self, feed_dict):
         self.check_list = []
@@ -198,14 +194,6 @@ class TiDIPSRec_rBase(object):
 
         i_vectors = self.i_embeddings(i_ids) # 获取阳性item和阴性item的embedding
 
-        # TiDIPSRec_r: 尝试对输出的Embedding进行按周期计权的旋转和叠加，从而捕获各兴趣的周期特征
-        # time_weights = self.time_rotate_weight(his_vectors)
-        # omega_max = 1.
-        # omega_min = self.max_timestamp_converted
-        # omega_idx = ***# 一个长度为固定的向量，用于后面计算旋转后的向量
-
-
-
         # 输出侧
         # 方法0：对最后一个输出embedding求内积
         # prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
@@ -225,14 +213,14 @@ class TiDIPSRec_rBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class TiDIPSRec_r(SequentialModel, TiDIPSRec_rBase):
+class TiDIPSRec_r_base(SequentialModel, TiDIPSRec_r_baseBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRec_rBase.parse_model_args(parser)
+        parser = TiDIPSRec_r_baseBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -282,18 +270,18 @@ class TiDIPSRec_r(SequentialModel, TiDIPSRec_rBase):
 
 
     def forward(self, feed_dict):
-        out_dict = TiDIPSRec_rBase.forward(self, feed_dict)
+        out_dict = TiDIPSRec_r_baseBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class TiDIPSRec_rImpression(ImpressionSeqModel, TiDIPSRec_rBase):
+class TiDIPSRec_r_baseImpression(ImpressionSeqModel, TiDIPSRec_r_baseBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRec_rBase.parse_model_args(parser)
+        parser = TiDIPSRec_r_baseBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -301,4 +289,4 @@ class TiDIPSRec_rImpression(ImpressionSeqModel, TiDIPSRec_rBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return TiDIPSRec_rBase.forward(self, feed_dict)
+        return TiDIPSRec_r_baseBase.forward(self, feed_dict)

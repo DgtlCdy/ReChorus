@@ -168,10 +168,10 @@ if __name__ == '__main__':
     # for model_name_default in ['DIPSRec_TIP']:
     # for model_name_default in ['DIPSRec_1m', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
-    # for model_name_default in ['DIPSRec']:
+    for model_name_default in ['DIPSRec']:
     # for model_name_default in ['TiDIPSRec_32', 'TiDIPSRec_64', 'DIPSRec']: # 'DIPSRec'就是128
     # for model_name_default in ['TiDIPSRec_nop', 'TiDIPSRec_nop_2ebd']:
-    for model_name_default in ['TiDIPSRec_r']: # 'DIPSRec'就是128
+    # for model_name_default in ['TiDIPSRec_r']: # 'DIPSRec'就是128
         for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
             init_parser = argparse.ArgumentParser(description='Model')
             init_parser.add_argument('--model_name', type=str, default=model_name_default, help='Choose a model to run.')
