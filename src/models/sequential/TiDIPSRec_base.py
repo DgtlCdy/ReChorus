@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" TiDIPSRec
+""" TiDIPSRec_base
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,12 +20,10 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class TiDIPSRecBase(object):
+class TiDIPSRec_baseBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
-                            help='Size of embedding vectors.')
-        parser.add_argument('--time_size', type=int, default=256,
                             help='Size of embedding vectors.')
         parser.add_argument('--num_layers', type=int, default=1,
                             help='Number of self-attention layers.')
@@ -37,7 +35,6 @@ class TiDIPSRecBase(object):
 
     def _base_init(self, args, corpus):
         self.emb_size = args.emb_size
-        self.time_size = args.time_size
         self.max_his = args.history_max
         self.num_layers = args.num_layers
         self.num_heads = args.num_heads
@@ -79,7 +76,7 @@ class TiDIPSRecBase(object):
         # self.t_embeddings_ffn = nn.Embedding(self.max_time + 2, self.emb_size)
 
         self.transformer_block = nn.ModuleList([
-            layers.TransformerLayer_Ti(d_model=self.emb_size, d_ff=self.emb_size, d_t=self.time_size, n_heads=self.num_heads,
+            layers.TransformerLayer_TIP(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
                                     dropout=self.dropout, kq_same=False)
             for _ in range(self.num_layers)
         ])
@@ -140,19 +137,19 @@ class TiDIPSRecBase(object):
         # 获取单调和周期性的时间Embedding
         t_ebds_m = self.t_embeddings_gm(idx) # 单调部分完成，但还没有卷积的部分
 
-        # idx_g = torch.Tensor(range(self.max_time)).int().to(torch.device('cuda'))
-        # scores_g = his_vectors @ self.t_embeddings_gp_k(idx_g).T / (self.emb_size ** 0.5)
-        # scores_valid = torch.zeros_like(scores_g)
-        # for i in range(his_vectors.size(0)):
-        #     for j in range(lengths[i]):
-        #         scores_valid[i, j, :idx[i, j]] = 1
+        idx_g = torch.Tensor(range(self.max_time)).int().to(torch.device('cuda'))
+        scores_g = his_vectors @ self.t_embeddings_gp_k(idx_g).T / (self.emb_size ** 0.5)
+        scores_valid = torch.zeros_like(scores_g)
+        for i in range(his_vectors.size(0)):
+            for j in range(lengths[i]):
+                scores_valid[i, j, :idx[i, j]] = 1
         # 这个方法出现未知的cuda问题，暂时不用
         # valid_indice = torch.tril(torch.ones(128, 128), diagonal=0).int().to(self.device)
         # scores_valid = valid_indice[idx]
 
-        # scores_g_weighted = torch.softmax(scores_g, dim=-1) * scores_valid
-        # scores_g_weighted = torch.nn.functional.normalize(scores_g_weighted, p=1, dim=-1)
-        # t_ebds_p = scores_g_weighted @ self.t_embeddings_gp_v(idx_g)
+        scores_g_weighted = torch.softmax(scores_g, dim=-1) * scores_valid
+        scores_g_weighted = torch.nn.functional.normalize(scores_g_weighted, p=1, dim=-1)
+        t_ebds_p = scores_g_weighted @ self.t_embeddings_gp_v(idx_g)
 
         # scores_g_weighted = torch.zeros_like(scores_g)
         # for i in range(his_vectors.size(0)):
@@ -175,7 +172,7 @@ class TiDIPSRecBase(object):
 
         # his_vectors = his_vectors + pos_vectors
         # his_vectors = his_vectors + pos_vectors + t_ebds_sa
-        his_vectors = his_vectors + pos_vectors + t_ebds_m
+        his_vectors = his_vectors + pos_vectors + t_ebds_m + t_ebds_p
 
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系
@@ -183,28 +180,9 @@ class TiDIPSRecBase(object):
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
-            his_vectors, weight_t = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            his_vectors = block(his_vectors, t_ebds_m, t_ebds_p, attn_mask_full) # transformer的输出维度和输入维度是一样的
             # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
-
-        # 针对获取的时间取旋转的权重
-        # 维度：256*20*time_size
-        # 其实只需要知道最短时间间隔，也就是时间单位即可，amazon的数据集，最小时间间隔是86400秒，可以先用直接的时间来估计
-        # 现在已知current_interval，即每个兴趣的相对时间间隔，而且是调整好的，现在要求出对应的每个权重
-        # 假设周期最长为10年
-        # 定义第一个元素、最后一个元素和长度
-        first_element = 1
-        last_element = 10*3650
-        length = self.time_size
-        # 计算公比
-        ratio = (last_element / first_element) ** (1 / (length - 1))
-        period = first_element * (ratio ** torch.arange(length)).float()
-        omega = (period / (2 * torch.pi)).to(self.device)
-
-        weight_t_added = weight_t * ((torch.cos(t_history[:, :, None] * omega[None, None, :]) + 1) / 2)
-        weight_t_added = weight_t_added.sum(-1)
-        his_vectors = his_vectors * weight_t_added[:, :, None]
-
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
         his_vector = his_vectors[torch.arange(batch_size), lengths - 1, :] # 为什么不直接用冒号？
@@ -232,14 +210,14 @@ class TiDIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class TiDIPSRec(SequentialModel, TiDIPSRecBase):
+class TiDIPSRec_base(SequentialModel, TiDIPSRec_baseBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = TiDIPSRec_baseBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -289,18 +267,18 @@ class TiDIPSRec(SequentialModel, TiDIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = TiDIPSRecBase.forward(self, feed_dict)
+        out_dict = TiDIPSRec_baseBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
+class TiDIPSRec_baseImpression(ImpressionSeqModel, TiDIPSRec_baseBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = TiDIPSRec_baseBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -308,4 +286,4 @@ class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return TiDIPSRecBase.forward(self, feed_dict)
+        return TiDIPSRec_baseBase.forward(self, feed_dict)
