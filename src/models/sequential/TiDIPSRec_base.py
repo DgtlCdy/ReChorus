@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" DIPSRec_5mp
+""" TiDIPSRec_base
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class DIPSRec_5mpBase(object):
+class TiDIPSRec_baseBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -29,6 +29,8 @@ class DIPSRec_5mpBase(object):
                             help='Number of self-attention layers.')
         parser.add_argument('--num_heads', type=int, default=4,
                             help='Number of attention heads.')
+        parser.add_argument('--time_max', type=int, default=128,
+                            help='Max time intervals.')
         return parser        
 
     def _base_init(self, args, corpus):
@@ -36,19 +38,45 @@ class DIPSRec_5mpBase(object):
         self.max_his = args.history_max
         self.num_layers = args.num_layers
         self.num_heads = args.num_heads
+        self.max_time = args.time_max
         self.len_range = torch.from_numpy(np.arange(self.max_his)).to(self.device)
         self._base_define_params()
         self.apply(self.init_weights)
         self.R = 0
         self.gram_matrix = 0  # 把item相似矩阵放在base里面
 
+        # 获得全部时间，并求得最大值、最小值、最小时间间隔，然后根据这些参数建模时间间隔embedding、确定索引方式
+        time_seqs = []
+        for u, user_df in corpus.all_df.groupby('user_id'):
+            time_seqs.extend(user_df['time'].values.tolist())
+        time_seqs = sorted(set([int(_) for _ in time_seqs]))
+        # time_b = torch.Tensor(time_seqs + [0xFFFFFFFF]).int()
+        # time_a = torch.Tensor([0] + time_seqs).int()
+        # time_intervals = time_b - time_a
+        # self.min_interval = min(time_intervals).item()
+        self.min_timestamp = time_seqs[0]
+        self.max_timestamp = time_seqs[-1]
+        self.min_interval = 0xFFFFFFFF
+        for idx in range(len(time_seqs) - 1):
+            self.min_interval = min(self.min_interval, time_seqs[idx+1] - time_seqs[idx])
+        if self.min_interval == 0:
+            self.min_interval = 1
+        self.min_timestamp_converted = 0
+        self.max_timestamp_converted = (self.max_timestamp - self.min_timestamp) / self.min_interval
+
 
     def _base_define_params(self):
         self.i_embeddings = nn.Embedding(self.item_num, self.emb_size)
         self.p_embeddings = nn.Embedding(self.max_his + 1, self.emb_size)
 
+        self.t_embeddings_gm = nn.Embedding(self.max_time + 2, self.emb_size)
+        self.t_embeddings_gp_k = nn.Embedding(self.max_time + 2, self.emb_size)
+        self.t_embeddings_gp_v = nn.Embedding(self.max_time + 2, self.emb_size)
+        # self.t_embeddings_sa = nn.Embedding(self.max_time + 2, self.emb_size)
+        # self.t_embeddings_ffn = nn.Embedding(self.max_time + 2, self.emb_size)
+
         self.transformer_block = nn.ModuleList([
-            layers.TransformerLayer(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
+            layers.TransformerLayer_TIP(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
                                     dropout=self.dropout, kq_same=False)
             for _ in range(self.num_layers)
         ])
@@ -58,18 +86,20 @@ class DIPSRec_5mpBase(object):
         u_ids = feed_dict['user_id']
         i_ids = feed_dict['item_id']  # [batch_size, -1]
         history = feed_dict['history_items']  # [batch_size, history_max]
+        t_history = feed_dict['history_times']  # [batch_size, history_max]
         lengths = feed_dict['lengths']  # [batch_size] # 每一个用户序列的长度，取值1-20
+
         batch_size, seq_len = history.shape
         valid_his = (history > 0).long()
 
         interests_sim = self.gram_matrix[history]
         # 4种构建基于相似的兴趣的方式：
         # 0，不使用交互，传入自身Embedding直接作为兴趣
-        his_vectors = self.i_embeddings(history)
+        # his_vectors = self.i_embeddings(history)
         # 1，直接拿相似度矩阵，哈达玛乘一个全1向量
-        # interests_sim = interests_sim
-        # interests_input = interests_sim @ self.i_embeddings.weight
-        # his_vectors = interests_input
+        interests_sim = interests_sim
+        interests_input = interests_sim @ self.i_embeddings.weight
+        his_vectors = interests_input
         # 2，哈达玛乘一个用户全局交互
         # user_interaction = self.R[u_ids]
         # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
@@ -85,22 +115,72 @@ class DIPSRec_5mpBase(object):
         # interests_input = interests_sim @ self.i_embeddings.weight
         # his_vectors = interests_input
 
+        # 获取每一个交互离最新交互的时间间隔current_interval
+        t_history = t_history
+        t_history = (t_history - self.min_timestamp).relu()
+        t_history = t_history / self.min_interval
+        max_values, _ = torch.max(t_history, dim=1)
+        current_interval = max_values.unsqueeze(-1).expand_as(t_history) - t_history
 
+        # 将时间间隔转化为时间Embedding
+        # # 方案1：小于1的幂次
+        # convert_pow = torch.log(torch.tensor(self.max_time)) / torch.log(torch.tensor(self.max_timestamp_converted))
+        # idx = torch.pow(current_interval, convert_pow).int()
+        # # 方案2：线性
+        # convert_line = torch.tensor(self.max_time) / torch.tensor(self.max_timestamp_converted)
+        # idx = (current_interval * convert_line).int()
+        # 方案3：对数
+        convert_log_a = torch.pow(torch.tensor(self.max_timestamp_converted), torch.tensor(1. / self.max_time))
+        # convert_log = torch.exp(convert_log_a), convert_log_a = torch.log(convert_log)
+        idx = (torch.log(current_interval + 1) / torch.log(convert_log_a)).int()
+
+        # 获取单调和周期性的时间Embedding
+        t_ebds_m = self.t_embeddings_gm(idx) # 单调部分完成，但还没有卷积的部分
+
+        idx_g = torch.Tensor(range(self.max_time)).int().to(torch.device('cuda'))
+        scores_g = his_vectors @ self.t_embeddings_gp_k(idx_g).T / (self.emb_size ** 0.5)
+        scores_valid = torch.zeros_like(scores_g)
+        for i in range(his_vectors.size(0)):
+            for j in range(lengths[i]):
+                scores_valid[i, j, :idx[i, j]] = 1
+        # 这个方法出现未知的cuda问题，暂时不用
+        # valid_indice = torch.tril(torch.ones(128, 128), diagonal=0).int().to(self.device)
+        # scores_valid = valid_indice[idx]
+
+        scores_g_weighted = torch.softmax(scores_g, dim=-1) * scores_valid
+        scores_g_weighted = torch.nn.functional.normalize(scores_g_weighted, p=1, dim=-1)
+        t_ebds_p = scores_g_weighted @ self.t_embeddings_gp_v(idx_g)
+
+        # scores_g_weighted = torch.zeros_like(scores_g)
+        # for i in range(his_vectors.size(0)):
+        #     for j in range(lengths[i]):
+        #         # i_vector = his_vectors[i, j, :]
+        #         i_idx = idx[i, j]
+        #         idx_v = torch.Tensor(range(i_idx)).int().to(torch.device('cuda'))
+        #         # 基于注意力，将得到的时间Embedding传给t_ebds_p
+        #         scores = scores_g[i, j, :i_idx]
+        #         scores_g_weighted[i, j, :i_idx] = torch.softmax(scores, dim=-1)
+        #         # scores = torch.softmax(scores, dim=-1)
+        #         # t_ebds_p[i, j, :]  = scores @ self.t_embeddings_gp_v(idx_v)
+        # t_ebds_p = scores_g_weighted @ self.t_embeddings_gp_v(idx_g)
 
         # Position embedding
         # lengths:  [4, 2, 5]
         # position: [[4, 3, 2, 1, 0], [2, 1, 0, 0, 0], [5, 4, 3, 2, 1]]
         position = (lengths[:, None] - self.len_range[None, :seq_len]) * valid_his
         pos_vectors = self.p_embeddings(position)
-        his_vectors = his_vectors + pos_vectors
+
+        # his_vectors = his_vectors + pos_vectors
+        # his_vectors = his_vectors + pos_vectors + t_ebds_sa
+        his_vectors = his_vectors + pos_vectors + t_ebds_m + t_ebds_p
 
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系
-        attn_mask = torch.from_numpy(causality_mask).to(self.device)
+        attn_mask = torch.from_numpy(causality_mask).to(torch.device('cuda'))
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
-            his_vectors = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            his_vectors = block(his_vectors, t_ebds_m, t_ebds_p, attn_mask_full) # transformer的输出维度和输入维度是一样的
             # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
@@ -130,14 +210,14 @@ class DIPSRec_5mpBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class DIPSRec_5mp(SequentialModel, DIPSRec_5mpBase):
+class TiDIPSRec_base(SequentialModel, TiDIPSRec_baseBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_5mpBase.parse_model_args(parser)
+        parser = TiDIPSRec_baseBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -187,18 +267,18 @@ class DIPSRec_5mp(SequentialModel, DIPSRec_5mpBase):
 
 
     def forward(self, feed_dict):
-        out_dict = DIPSRec_5mpBase.forward(self, feed_dict)
+        out_dict = TiDIPSRec_baseBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class DIPSRec_5mpImpression(ImpressionSeqModel, DIPSRec_5mpBase):
+class TiDIPSRec_baseImpression(ImpressionSeqModel, TiDIPSRec_baseBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_5mpBase.parse_model_args(parser)
+        parser = TiDIPSRec_baseBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -206,4 +286,4 @@ class DIPSRec_5mpImpression(ImpressionSeqModel, DIPSRec_5mpBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return DIPSRec_5mpBase.forward(self, feed_dict)
+        return TiDIPSRec_baseBase.forward(self, feed_dict)
