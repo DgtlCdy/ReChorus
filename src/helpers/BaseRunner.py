@@ -207,7 +207,7 @@ class BaseRunner(object):
             if len(prediction.shape)==2: # only for ranking tasks
                 restored_prediction = torch.zeros(*prediction.shape).to(prediction.device)
                 # use the random indices to shuffle back
-                restored_prediction[torch.arange(item_ids.shape[0]).unsqueeze(-1), indices] = prediction   
+                restored_prediction[torch.arange(item_ids.shape[0]).unsqueeze(-1), indices] = prediction.float()
                 out_dict['prediction'] = restored_prediction
 
             if 'kl' not in out_dict:

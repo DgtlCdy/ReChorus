@@ -193,17 +193,29 @@ class TiDIPSRecBase(object):
         # 现在已知current_interval，即每个兴趣的相对时间间隔，而且是调整好的，现在要求出对应的每个权重
         # 假设周期最长为10年
         # 定义第一个元素、最后一个元素和长度
-        first_element = 1
-        last_element = 10*3650
+        # first_element = 3600 * 24
+        # last_element = 3600 * 24 * 365
+        unit = 1
+        first_element = unit * 1
+        last_element = unit * 10 * 365
         length = self.time_size
         # 计算公比
         ratio = (last_element / first_element) ** (1 / (length - 1))
         period = first_element * (ratio ** torch.arange(length)).float()
-        omega = (period / (2 * torch.pi)).to(self.device)
+        omega = (2 * torch.pi / period).to(self.device)
+        # omega = (period / (2 * torch.pi) / last_element).to(self.device)
+        # 计算公差
+        # ratio = (last_element - first_element) / length
+        # period = (first_element + (ratio * torch.arange(length))).float()
+        # omega = (2 * torch.pi / period).to(self.device)
+        # # omega = (period / (2 * torch.pi) / last_element).to(self.device)
 
-        weight_t_added = weight_t * ((torch.cos(t_history[:, :, None] * omega[None, None, :]) + 1) / 2)
+        # weight_t_added = weight_t * ((torch.cos(t_history[:, :, None] * omega[None, None, :]) + 1) / 2)
+        weight_t_added = weight_t * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
+
         weight_t_added = weight_t_added.sum(-1)
         his_vectors = his_vectors * weight_t_added[:, :, None]
+        his_vectors = his_vectors * valid_his[:, :, None].float()
 
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
