@@ -90,6 +90,8 @@ class TiDIPSRecBase(object):
         i_ids = feed_dict['item_id']  # [batch_size, -1]
         history = feed_dict['history_items']  # [batch_size, history_max]
         t_history = feed_dict['history_times']  # [batch_size, history_max]
+
+        # 这里作为实时推荐任务，应当为feed_dict添加item_id对应的time，包括训练、验证、测试的三个时间
         lengths = feed_dict['lengths']  # [batch_size] # 每一个用户序列的长度，取值1-20
 
         batch_size, seq_len = history.shape
@@ -195,7 +197,7 @@ class TiDIPSRecBase(object):
         # 定义第一个元素、最后一个元素和长度
         # first_element = 3600 * 24
         # last_element = 3600 * 24 * 365
-        unit = 1
+        unit = 1000
         first_element = unit * 1
         last_element = unit * 10 * 365
         length = self.time_size
