@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" TiDIPSRec
+""" TiDIPSRec_notRealTime
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class TiDIPSRecBase(object):
+class TiDIPSRec_notRealTimeBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -50,11 +50,7 @@ class TiDIPSRecBase(object):
 
         # 获得全部时间，并求得最大值、最小值、最小时间间隔，然后根据这些参数建模时间间隔embedding、确定索引方式
         time_seqs = []
-        # 训练集中给出最小的时间戳
         for u, user_df in corpus.all_df.groupby('user_id'):
-            time_seqs.extend(user_df['time'].values.tolist())
-        # 测试集中给出最大的时间戳
-        for u, user_df in corpus.data_df['test'].groupby('user_id'):
             time_seqs.extend(user_df['time'].values.tolist())
         time_seqs = sorted(set([int(_) for _ in time_seqs]))
         # time_b = torch.Tensor(time_seqs + [0xFFFFFFFF]).int()
@@ -254,14 +250,14 @@ class TiDIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class TiDIPSRec(SequentialModel, TiDIPSRecBase):
+class TiDIPSRec_notRealTime(SequentialModel, TiDIPSRec_notRealTimeBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = TiDIPSRec_notRealTimeBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -311,18 +307,18 @@ class TiDIPSRec(SequentialModel, TiDIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = TiDIPSRecBase.forward(self, feed_dict)
+        out_dict = TiDIPSRec_notRealTimeBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
+class TiDIPSRec_notRealTimeImpression(ImpressionSeqModel, TiDIPSRec_notRealTimeBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = TiDIPSRec_notRealTimeBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -330,4 +326,4 @@ class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return TiDIPSRecBase.forward(self, feed_dict)
+        return TiDIPSRec_notRealTimeBase.forward(self, feed_dict)

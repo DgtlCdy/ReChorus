@@ -70,6 +70,7 @@ def main():
     logging.info(model)
 
     # Define dataset
+    # 初始化训练集、验证集和测试集
     data_dict = dict()
     for phase in ['train', 'dev', 'test']:
         data_dict[phase] = model_name.Dataset(model, corpus, phase)
