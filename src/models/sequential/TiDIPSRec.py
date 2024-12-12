@@ -221,12 +221,16 @@ class TiDIPSRecBase(object):
         # omega = (period / (2 * torch.pi) / last_element).to(self.device)
         # 计算公差
         ratio = (last_element - first_element) / length
-        period = (first_element + (ratio * torch.arange(length))).float()
+        period = (first_element + (ratio * torch.arange(length))).float().to(self.device)
         omega = (2 * torch.pi / period).to(self.device)
         # omega = (period / (2 * torch.pi) / last_element).to(self.device)
 
+        time_attenuation = period[None, None, :] / (period[None, None, :] + 0.01 * current_interval[:, :, None])
+
+
         # weight_t_added = weight_t * ((torch.cos(t_history[:, :, None] * omega[None, None, :]) + 1) / 2)
-        weight_t_added = weight_t * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
+        # weight_t_added = weight_t * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
+        weight_t_added = weight_t * time_attenuation * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
 
         weight_t_added = weight_t_added.sum(-1)
         his_vectors = his_vectors * weight_t_added[:, :, None]

@@ -173,11 +173,11 @@ if __name__ == '__main__':
     # for model_name_default in ['TiDIPSRec_32', 'TiDIPSRec_64', 'DIPSRec']: # 'DIPSRec'就是128
     # for model_name_default in ['TiDIPSRec_nop', 'TiDIPSRec_nop_2ebd']:
     # for model_name_default in ['TiDIPSRec']:
-    for model_name_default in ['TiDIPSRec']:
+    for model_name_default in ['SASRec', 'DIPSRec', 'TiDIPSRec']:
         # for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
         # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'FourSquare_CA']:
-        # for dataset_default in ['ML_1M_TOPK']:
-        for dataset_default in ['Beauty', 'Video_Games', 'FourSquare_NYC', 'FourSquare_TKY']:
+        for dataset_default in ['ML_1M_TOPK']:
+        # for dataset_default in ['Beauty', 'Video_Games', 'FourSquare_NYC', 'FourSquare_TKY']:
             init_parser = argparse.ArgumentParser(description='Model')
             init_parser.add_argument('--model_name', type=str, default=model_name_default, help='Choose a model to run.')
             init_parser.add_argument('--model_mode', type=str, default='', 
