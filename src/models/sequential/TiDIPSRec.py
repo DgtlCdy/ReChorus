@@ -205,20 +205,25 @@ class TiDIPSRecBase(object):
         # 定义第一个元素、最后一个元素和长度
         # first_element = 3600 * 24
         # last_element = 3600 * 24 * 365
-        unit = 1000
-        first_element = unit * 1
-        last_element = unit * 10 * 365
+        if self.min_interval == 86400:
+            unit_oneday = 1
+        elif self.min_interval == 1:
+            unit_oneday = 86400
+        else:
+            unit_oneday = 86400 / self.min_interval
+        first_element = unit_oneday * 1
+        last_element = unit_oneday * 10 * 365
         length = self.time_size
         # 计算公比
-        ratio = (last_element / first_element) ** (1 / (length - 1))
-        period = first_element * (ratio ** torch.arange(length)).float()
-        omega = (2 * torch.pi / period).to(self.device)
+        # ratio = (last_element / first_element) ** (1 / (length - 1))
+        # period = first_element * (ratio ** torch.arange(length)).float()
+        # omega = (2 * torch.pi / period).to(self.device)
         # omega = (period / (2 * torch.pi) / last_element).to(self.device)
         # 计算公差
-        # ratio = (last_element - first_element) / length
-        # period = (first_element + (ratio * torch.arange(length))).float()
-        # omega = (2 * torch.pi / period).to(self.device)
-        # # omega = (period / (2 * torch.pi) / last_element).to(self.device)
+        ratio = (last_element - first_element) / length
+        period = (first_element + (ratio * torch.arange(length))).float()
+        omega = (2 * torch.pi / period).to(self.device)
+        # omega = (period / (2 * torch.pi) / last_element).to(self.device)
 
         # weight_t_added = weight_t * ((torch.cos(t_history[:, :, None] * omega[None, None, :]) + 1) / 2)
         weight_t_added = weight_t * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
