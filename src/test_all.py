@@ -168,13 +168,14 @@ if __name__ == '__main__':
     # for model_name_default in ['ComiRec', 'TiMiRec', 'TiSASRec','DIPSRec', 'TiDIPSRec', 'DIPSRec_1m', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['DIPSRec_TIP', 'DIPSRec_TIP_base', 'DIPSRec', 'TiSASRec']:
     # for model_name_default in ['DIPSRec_TIP']:
-    for model_name_default in ['DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
+    # for model_name_default in ['DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['DIPSRec']:
     # for model_name_default in ['TiDIPSRec_32', 'TiDIPSRec_64', 'DIPSRec']: # 'DIPSRec'就是128
     # for model_name_default in ['TiDIPSRec_nop', 'TiDIPSRec_nop_2ebd']:
     # for model_name_default in ['TiDIPSRec']:
     # for model_name_default in ['TiDIPSRec_0d0',  'TiDIPSRec_0d1', 'TiDIPSRec', 'TiDIPSRec_0d001']:
+    for model_name_default in ['TiDIPSRec_1t',  'TiDIPSRec_2f', 'TiDIPSRec_3i', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['SASRec', 'DIPSRec', 'TiDIPSRec']:
         # for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
         # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'FourSquare_CA']:
