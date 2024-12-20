@@ -70,6 +70,7 @@ def main():
     logging.info(model)
 
     # Define dataset
+    # 初始化训练集、验证集和测试集
     data_dict = dict()
     for phase in ['train', 'dev', 'test']:
         data_dict[phase] = model_name.Dataset(model, corpus, phase)
@@ -160,61 +161,61 @@ def save_rec_results(dataset, runner, topk):
     logging.info("{} Prediction results saved!".format(dataset.phase))
 
 if __name__ == '__main__':
-    dataset_default = 'Grocery_and_Gourmet_Food'
-    # dataset_default = 'ML_1M_TOPK'
 
-    init_parser = argparse.ArgumentParser(description='Model')
-    # init_parser.add_argument('--model_name', type=str, default='DIPSRec_TIP', help='Choose a model to run.')
-    # init_parser.add_argument('--model_name', type=str, default='DIPSRec_VAE', help='Choose a model to run.')
-    # init_parser.add_argument('--model_name', type=str, default='DIPSRec_Test', help='Choose a model to run.')
-    # init_parser.add_argument('--model_name', type=str, default='SVAN', help='Choose a model to run.')
-    # init_parser.add_argument('--model_name', type=str, default='SASRec', help='Choose a model to run.')
-    # init_parser.add_argument('--model_name', type=str, default='TiSASRec', help='Choose a model to run.')
-    init_parser.add_argument('--model_name', type=str, default='TiDIPSRec', help='Choose a model to run.')
-    init_parser.add_argument('--model_mode', type=str, default='', 
-                             help='Model mode(i.e., suffix), for context-aware models to select "CTR" or "TopK" Ranking task;\
-                                    for general/seq models to select Normal (no suffix, model_mode="") or "Impression" setting;\
-                                      for rerankers to select "General" or "Sequential" Baseranker.')
-    init_args, init_extras = init_parser.parse_known_args()
+    is_handler_added = 0  # for logging repeat issue.
 
-    # 设置随机种子
-    import time
-    seed = int(time.time())
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(seed)
+    for model_name_default in ['RtDIPSRec']:
+        for dataset_default in ['Beauty', 'Video_Games', 'FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
+            init_parser = argparse.ArgumentParser(description='Model')
+            init_parser.add_argument('--model_name', type=str, default=model_name_default, help='Choose a model to run.')
+            init_parser.add_argument('--model_mode', type=str, default='', 
+                                    help='Model mode(i.e., suffix), for context-aware models to select "CTR" or "TopK" Ranking task;\
+                                            for general/seq models to select Normal (no suffix, model_mode="") or "Impression" setting;\
+                                            for rerankers to select "General" or "Sequential" Baseranker.')
+            init_args, init_extras = init_parser.parse_known_args()
 
-    # 根据模型名获取模型和对应的reader、runner，这几个name指代类本身
-    model_name = eval('{0}.{0}{1}'.format(init_args.model_name,init_args.model_mode))
-    reader_name = eval('{0}.{0}'.format(model_name.reader))  # model chooses the reader
-    runner_name = eval('{0}.{0}'.format(model_name.runner))  # model chooses the runner
+            # 设置随机种子
+            import time
+            seed = int(time.time())
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(seed)
 
-    # Args
-    parser = argparse.ArgumentParser(description='')
-    parser = parse_global_args(parser)
-    parser = reader_name.parse_data_args(parser, dataset_default)
-    parser = runner_name.parse_runner_args(parser)
-    parser = model_name.parse_model_args(parser)
-    args, extras = parser.parse_known_args()
-    
-    args.data_appendix = '' # save different version of data for, e.g., context-aware readers with different groups of context
-    if 'Context' in model_name.reader:
-        args.data_appendix = '_context%d%d%d'%(args.include_item_features,args.include_user_features,
-                                        args.include_situation_features)
+            # 根据模型名获取模型和对应的reader、runner，这几个name指代类本身
+            model_name = eval('{0}.{0}{1}'.format(init_args.model_name,init_args.model_mode))
+            reader_name = eval('{0}.{0}'.format(model_name.reader))  # model chooses the reader
+            runner_name = eval('{0}.{0}'.format(model_name.runner))  # model chooses the runner
 
-    # Logging configuration
-    log_args = [init_args.model_name+init_args.model_mode, args.dataset+args.data_appendix, str(args.random_seed)]
-    for arg in ['lr', 'l2'] + model_name.extra_log_args:
-        log_args.append(arg + '=' + str(eval('args.' + arg)))
-    log_file_name = '__'.join(log_args).replace(' ', '__')
-    if args.log_file == '':
-        args.log_file = '../log/{}/{}.txt'.format(init_args.model_name+init_args.model_mode, log_file_name)
-    if args.model_path == '':
-        args.model_path = '../model/{}/{}.pt'.format(init_args.model_name+init_args.model_mode, log_file_name)
+            # Args
+            parser = argparse.ArgumentParser(description='')
+            parser = parse_global_args(parser)
+            parser = reader_name.parse_data_args(parser, dataset_default)
+            parser = runner_name.parse_runner_args(parser)
+            parser = model_name.parse_model_args(parser)
+            args, extras = parser.parse_known_args()
+            
+            args.data_appendix = '' # save different version of data for, e.g., context-aware readers with different groups of context
+            if 'Context' in model_name.reader:
+                args.data_appendix = '_context%d%d%d'%(args.include_item_features,args.include_user_features,
+                                                args.include_situation_features)
 
-    utils.check_dir(args.log_file)
-    logging.basicConfig(filename=args.log_file, level=args.verbose)
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    logging.info(init_args)
+            # Logging configuration
+            log_args = [init_args.model_name+init_args.model_mode, args.dataset+args.data_appendix, str(args.random_seed)]
+            for arg in ['lr', 'l2'] + model_name.extra_log_args:
+                log_args.append(arg + '=' + str(eval('args.' + arg)))
+            log_file_name = '__'.join(log_args).replace(' ', '__')
+            if args.log_file == '':
+                args.log_file = '../log/{}/{}.txt'.format(init_args.model_name+init_args.model_mode, log_file_name)
+            if args.model_path == '':
+                args.model_path = '../model/{}/{}.pt'.format(init_args.model_name+init_args.model_mode, log_file_name)
 
-    main()
+            if is_handler_added == 0:
+                utils.check_dir(args.log_file)
+                logging.basicConfig(filename=args.log_file, level=args.verbose)
+                logging.getLogger().propagate = False
+                logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+                is_handler_added = 1
+            logging.info(init_args)
+            # logging.info(f'test: {model_name_default}, {dataset_default}.')
+
+            main()
