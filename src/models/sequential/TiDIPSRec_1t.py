@@ -183,9 +183,9 @@ class TiDIPSRec_1tBase(object):
         position = (lengths[:, None] - self.len_range[None, :seq_len]) * valid_his
         pos_vectors = self.p_embeddings(position)
 
-        # his_vectors = his_vectors + pos_vectors
+        his_vectors = his_vectors + pos_vectors
         # his_vectors = his_vectors + pos_vectors + t_ebds_sa
-        his_vectors = his_vectors + pos_vectors + t_ebds_m
+        # his_vectors = his_vectors + pos_vectors + t_ebds_m
 
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系

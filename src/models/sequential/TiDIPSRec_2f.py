@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" TiDIPSRec
+""" TiDIPSRec_2f
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class TiDIPSRecBase(object):
+class TiDIPSRec_2fBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -197,44 +197,44 @@ class TiDIPSRecBase(object):
             # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
-        # 针对获取的时间取旋转的权重
-        # 维度：256*20*time_size
-        # 其实只需要知道最短时间间隔，也就是时间单位即可，amazon的数据集，最小时间间隔是86400秒，可以先用直接的时间来估计
-        # 现在已知current_interval，即每个兴趣的相对时间间隔，而且是调整好的，现在要求出对应的每个权重
-        # 假设周期最长为10年
-        # 定义第一个元素、最后一个元素和长度
-        # first_element = 3600 * 24
-        # last_element = 3600 * 24 * 365
-        if self.min_interval == 86400:
-            unit_oneday = 1
-        elif self.min_interval == 1:
-            unit_oneday = 86400
-        else:
-            unit_oneday = 86400 / self.min_interval
-        first_element = unit_oneday * 1
-        last_element = unit_oneday * 10 * 365
-        length = self.time_size
-        # 计算公比
-        # ratio = (last_element / first_element) ** (1 / (length - 1))
-        # period = first_element * (ratio ** torch.arange(length)).float()
+        # # 针对获取的时间取旋转的权重
+        # # 维度：256*20*time_size
+        # # 其实只需要知道最短时间间隔，也就是时间单位即可，amazon的数据集，最小时间间隔是86400秒，可以先用直接的时间来估计
+        # # 现在已知current_interval，即每个兴趣的相对时间间隔，而且是调整好的，现在要求出对应的每个权重
+        # # 假设周期最长为10年
+        # # 定义第一个元素、最后一个元素和长度
+        # # first_element = 3600 * 24
+        # # last_element = 3600 * 24 * 365
+        # if self.min_interval == 86400:
+        #     unit_oneday = 1
+        # elif self.min_interval == 1:
+        #     unit_oneday = 86400
+        # else:
+        #     unit_oneday = 86400 / self.min_interval
+        # first_element = unit_oneday * 1
+        # last_element = unit_oneday * 10 * 365
+        # length = self.time_size
+        # # 计算公比
+        # # ratio = (last_element / first_element) ** (1 / (length - 1))
+        # # period = first_element * (ratio ** torch.arange(length)).float()
+        # # omega = (2 * torch.pi / period).to(self.device)
+        # # omega = (period / (2 * torch.pi) / last_element).to(self.device)
+        # # 计算公差
+        # ratio = (last_element - first_element) / length
+        # period = (first_element + (ratio * torch.arange(length))).float().to(self.device)
         # omega = (2 * torch.pi / period).to(self.device)
-        # omega = (period / (2 * torch.pi) / last_element).to(self.device)
-        # 计算公差
-        ratio = (last_element - first_element) / length
-        period = (first_element + (ratio * torch.arange(length))).float().to(self.device)
-        omega = (2 * torch.pi / period).to(self.device)
-        # omega = (period / (2 * torch.pi) / last_element).to(self.device)
+        # # omega = (period / (2 * torch.pi) / last_element).to(self.device)
 
-        time_attenuation = period[None, None, :] / (period[None, None, :] + 0.01 * current_interval[:, :, None])
+        # time_attenuation = period[None, None, :] / (period[None, None, :] + 0.01 * current_interval[:, :, None])
 
 
-        # weight_t_added = weight_t * ((torch.cos(t_history[:, :, None] * omega[None, None, :]) + 1) / 2)
-        # weight_t_added = weight_t * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
-        weight_t_added = weight_t * time_attenuation * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
+        # # weight_t_added = weight_t * ((torch.cos(t_history[:, :, None] * omega[None, None, :]) + 1) / 2)
+        # # weight_t_added = weight_t * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
+        # weight_t_added = weight_t * time_attenuation * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
 
-        weight_t_added = weight_t_added.sum(-1)
-        his_vectors = his_vectors * weight_t_added[:, :, None]
-        his_vectors = his_vectors * valid_his[:, :, None].float()
+        # weight_t_added = weight_t_added.sum(-1)
+        # his_vectors = his_vectors * weight_t_added[:, :, None]
+        # his_vectors = his_vectors * valid_his[:, :, None].float()
 
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
@@ -263,14 +263,14 @@ class TiDIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class TiDIPSRec(SequentialModel, TiDIPSRecBase):
+class TiDIPSRec_2f(SequentialModel, TiDIPSRec_2fBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = TiDIPSRec_2fBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -320,18 +320,18 @@ class TiDIPSRec(SequentialModel, TiDIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = TiDIPSRecBase.forward(self, feed_dict)
+        out_dict = TiDIPSRec_2fBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
+class TiDIPSRec_2fImpression(ImpressionSeqModel, TiDIPSRec_2fBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = TiDIPSRec_2fBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -339,4 +339,4 @@ class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return TiDIPSRecBase.forward(self, feed_dict)
+        return TiDIPSRec_2fBase.forward(self, feed_dict)

@@ -106,11 +106,11 @@ class TiDIPSRec_3iBase(object):
         interests_sim = self.gram_matrix[history]
         # 4种构建基于相似的兴趣的方式：
         # 0，不使用交互，传入自身Embedding直接作为兴趣
-        # his_vectors = self.i_embeddings(history)
+        his_vectors = self.i_embeddings(history)
         # 1，直接拿相似度矩阵，哈达玛乘一个全1向量
-        interests_sim = interests_sim
-        interests_input = interests_sim @ self.i_embeddings.weight
-        his_vectors = interests_input
+        # interests_sim = interests_sim
+        # interests_input = interests_sim @ self.i_embeddings.weight
+        # his_vectors = interests_input
         # 2，哈达玛乘一个用户全局交互
         # user_interaction = self.R[u_ids]
         # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
