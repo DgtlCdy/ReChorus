@@ -212,6 +212,7 @@ class GeneralModel(BaseModel):
     class Dataset(BaseModel.Dataset):
         def _get_feed_dict(self, index):
             user_id, target_item = self.data['user_id'][index], self.data['item_id'][index]
+            target_time = self.data['time'][index]
             if self.phase != 'train' and self.test_all:
                 neg_items = np.arange(1, self.corpus.n_items)
             else:
@@ -219,7 +220,8 @@ class GeneralModel(BaseModel):
             item_ids = np.concatenate([[target_item], neg_items]).astype(int)
             feed_dict = {
                 'user_id': user_id,
-                'item_id': item_ids
+                'item_id': item_ids,
+                'target_time': target_time
             }
             return feed_dict
 

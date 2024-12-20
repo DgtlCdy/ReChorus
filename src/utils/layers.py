@@ -190,7 +190,11 @@ class TransformerLayer_Ti(nn.Module):
         output = self.linear2(output)
         output = self.layer_norm2(self.dropout2(output) + context)
 
-        output_t = self.linear_t1(output).relu()
+        # output_t = self.linear_t1(output).relu()
+        # output_t = self.linear_t2(output)
+        # output_t = torch.softmax(output_t, dim=-1)
+        context = self.layer_norm2(context)
+        output_t = self.linear_t1(context).relu()
         output_t = self.linear_t2(output)
         output_t = torch.softmax(output_t, dim=-1)
 

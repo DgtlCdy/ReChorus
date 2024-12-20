@@ -70,6 +70,7 @@ def main():
     logging.info(model)
 
     # Define dataset
+    # 初始化训练集、验证集和测试集
     data_dict = dict()
     for phase in ['train', 'dev', 'test']:
         data_dict[phase] = model_name.Dataset(model, corpus, phase)
@@ -163,17 +164,25 @@ if __name__ == '__main__':
 
     is_handler_added = 0  # for logging repeat issue.
 
-    # for model_name_default in ['FPMC', 'Caser', 'GRU4Rec', 'SASRec', 'TiSASRec', 'ComiRec', 'TiMiRec', 'DIPSRec', 'DIPSRec_TIP']:
+    # for model_name_default in ['Caser', 'GRU4Rec', 'SASRec', 'ComiRec', 'TiMiRec', 'TiSASRec','DIPSRec', 'TiDIPSRec']:
+    # for model_name_default in ['ComiRec', 'TiMiRec', 'TiSASRec','DIPSRec', 'TiDIPSRec', 'DIPSRec_1m', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['DIPSRec_TIP', 'DIPSRec_TIP_base', 'DIPSRec', 'TiSASRec']:
     # for model_name_default in ['DIPSRec_TIP']:
-    # for model_name_default in ['DIPSRec_1m', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
+    # for model_name_default in ['DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['DIPSRec']:
     # for model_name_default in ['TiDIPSRec_32', 'TiDIPSRec_64', 'DIPSRec']: # 'DIPSRec'就是128
     # for model_name_default in ['TiDIPSRec_nop', 'TiDIPSRec_nop_2ebd']:
-    for model_name_default in ['TiDIPSRec']:
-        for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
+    for model_name_default in ['FPMC']:
+    # for model_name_default in ['TiDIPSRec_0d0',  'TiDIPSRec_0d1', 'TiDIPSRec', 'TiDIPSRec_0d001']:
+    # for model_name_default in ['TiDIPSRec_1t',  'TiDIPSRec_2f', 'TiDIPSRec_3i', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
+    # for model_name_default in ['SASRec', 'DIPSRec', 'TiDIPSRec']:
+        # for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
+        # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'FourSquare_CA']:
         # for dataset_default in ['ML_1M_TOPK']:
+        # for dataset_default in ['FourSquare_TKY']:
+        for dataset_default in ['Beauty', 'Video_Games', 'FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
+        # for dataset_default in ['Beauty', 'Video_Games', 'FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
             init_parser = argparse.ArgumentParser(description='Model')
             init_parser.add_argument('--model_name', type=str, default=model_name_default, help='Choose a model to run.')
             init_parser.add_argument('--model_mode', type=str, default='', 

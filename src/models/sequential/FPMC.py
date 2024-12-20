@@ -52,6 +52,9 @@ class FPMC(SequentialModel):
         li_vectors = self.li_embeddings(li_id)
         il_vectors = self.il_embeddings(i_ids)
 
+        # iu_vectors = iu_vectors[:, -20:, :]
+        # il_vectors = il_vectors[:, -20:, :]
+
         prediction = (ui_vectors[:, None, :] * iu_vectors).sum(-1) + (li_vectors[:, None, :] * il_vectors).sum(-1)
         return {'prediction': prediction.view(feed_dict['batch_size'], -1)}
 

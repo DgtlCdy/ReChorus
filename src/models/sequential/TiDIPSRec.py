@@ -31,7 +31,7 @@ class TiDIPSRecBase(object):
                             help='Number of self-attention layers.')
         parser.add_argument('--num_heads', type=int, default=4,
                             help='Number of attention heads.')
-        parser.add_argument('--time_max', type=int, default=128,
+        parser.add_argument('--time_max', type=int, default=256,
                             help='Max time intervals.')
         return parser        
 
@@ -50,7 +50,11 @@ class TiDIPSRecBase(object):
 
         # 获得全部时间，并求得最大值、最小值、最小时间间隔，然后根据这些参数建模时间间隔embedding、确定索引方式
         time_seqs = []
+        # 训练集中给出最小的时间戳
         for u, user_df in corpus.all_df.groupby('user_id'):
+            time_seqs.extend(user_df['time'].values.tolist())
+        # 测试集中给出最大的时间戳
+        for u, user_df in corpus.data_df['test'].groupby('user_id'):
             time_seqs.extend(user_df['time'].values.tolist())
         time_seqs = sorted(set([int(_) for _ in time_seqs]))
         # time_b = torch.Tensor(time_seqs + [0xFFFFFFFF]).int()
@@ -90,6 +94,10 @@ class TiDIPSRecBase(object):
         i_ids = feed_dict['item_id']  # [batch_size, -1]
         history = feed_dict['history_items']  # [batch_size, history_max]
         t_history = feed_dict['history_times']  # [batch_size, history_max]
+
+        # 这里作为实时推荐任务，应当为feed_dict添加item_id对应的time，包括训练、验证、测试的三个时间
+        t_target = feed_dict['target_time']  # 应当与i_ids一致
+
         lengths = feed_dict['lengths']  # [batch_size] # 每一个用户序列的长度，取值1-20
 
         batch_size, seq_len = history.shape
@@ -123,7 +131,9 @@ class TiDIPSRecBase(object):
         t_history = (t_history - self.min_timestamp).relu()
         t_history = t_history / self.min_interval
         max_values, _ = torch.max(t_history, dim=1)
-        current_interval = max_values.unsqueeze(-1).expand_as(t_history) - t_history
+        realtime = (t_target - self.min_timestamp) / self.min_interval
+        # current_interval = max_values.unsqueeze(-1).expand_as(t_history) - t_history
+        current_interval = realtime.unsqueeze(-1).expand_as(t_history) - t_history
 
         # 将时间间隔转化为时间Embedding
         # # 方案1：小于1的幂次
@@ -193,17 +203,38 @@ class TiDIPSRecBase(object):
         # 现在已知current_interval，即每个兴趣的相对时间间隔，而且是调整好的，现在要求出对应的每个权重
         # 假设周期最长为10年
         # 定义第一个元素、最后一个元素和长度
-        first_element = 1
-        last_element = 10*3650
+        # first_element = 3600 * 24
+        # last_element = 3600 * 24 * 365
+        if self.min_interval == 86400:
+            unit_oneday = 1
+        elif self.min_interval == 1:
+            unit_oneday = 86400
+        else:
+            unit_oneday = 86400 / self.min_interval
+        first_element = unit_oneday * 1
+        last_element = unit_oneday * 10 * 365
         length = self.time_size
         # 计算公比
-        ratio = (last_element / first_element) ** (1 / (length - 1))
-        period = first_element * (ratio ** torch.arange(length)).float()
-        omega = (period / (2 * torch.pi)).to(self.device)
+        # ratio = (last_element / first_element) ** (1 / (length - 1))
+        # period = first_element * (ratio ** torch.arange(length)).float()
+        # omega = (2 * torch.pi / period).to(self.device)
+        # omega = (period / (2 * torch.pi) / last_element).to(self.device)
+        # 计算公差
+        ratio = (last_element - first_element) / length
+        period = (first_element + (ratio * torch.arange(length))).float().to(self.device)
+        omega = (2 * torch.pi / period).to(self.device)
+        # omega = (period / (2 * torch.pi) / last_element).to(self.device)
 
-        weight_t_added = weight_t * ((torch.cos(t_history[:, :, None] * omega[None, None, :]) + 1) / 2)
+        time_attenuation = period[None, None, :] / (period[None, None, :] + 0.01 * current_interval[:, :, None])
+
+
+        # weight_t_added = weight_t * ((torch.cos(t_history[:, :, None] * omega[None, None, :]) + 1) / 2)
+        # weight_t_added = weight_t * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
+        weight_t_added = weight_t * time_attenuation * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
+
         weight_t_added = weight_t_added.sum(-1)
         his_vectors = his_vectors * weight_t_added[:, :, None]
+        his_vectors = his_vectors * valid_his[:, :, None].float()
 
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
