@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" DIPSRec_bak
+""" MIPSRec_3p
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class DIPSRec_bakBase(object):
+class MIPSRec_3pBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -65,11 +65,11 @@ class DIPSRec_bakBase(object):
         interests_sim = self.gram_matrix[history]
         # 4种构建基于相似的兴趣的方式：
         # 0，不使用交互，传入自身Embedding直接作为兴趣
-        # his_vectors = self.i_embeddings(history)
+        his_vectors = self.i_embeddings(history)
         # 1，直接拿相似度矩阵，哈达玛乘一个全1向量
-        interests_sim = interests_sim
-        interests_input = interests_sim @ self.i_embeddings.weight
-        his_vectors = interests_input
+        # interests_sim = interests_sim
+        # interests_input = interests_sim @ self.i_embeddings.weight
+        # his_vectors = interests_input
         # 2，哈达玛乘一个用户全局交互
         # user_interaction = self.R[u_ids]
         # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
@@ -100,7 +100,7 @@ class DIPSRec_bakBase(object):
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
-            his_vectors = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
             # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
@@ -130,14 +130,14 @@ class DIPSRec_bakBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class DIPSRec_bak(SequentialModel, DIPSRec_bakBase):
+class MIPSRec_3p(SequentialModel, MIPSRec_3pBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_bakBase.parse_model_args(parser)
+        parser = MIPSRec_3pBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -187,18 +187,18 @@ class DIPSRec_bak(SequentialModel, DIPSRec_bakBase):
 
 
     def forward(self, feed_dict):
-        out_dict = DIPSRec_bakBase.forward(self, feed_dict)
+        out_dict = MIPSRec_3pBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class DIPSRec_bakImpression(ImpressionSeqModel, DIPSRec_bakBase):
+class MIPSRec_3pImpression(ImpressionSeqModel, MIPSRec_3pBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_bakBase.parse_model_args(parser)
+        parser = MIPSRec_3pBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -206,4 +206,4 @@ class DIPSRec_bakImpression(ImpressionSeqModel, DIPSRec_bakBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return DIPSRec_bakBase.forward(self, feed_dict)
+        return MIPSRec_3pBase.forward(self, feed_dict)

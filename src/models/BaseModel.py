@@ -114,9 +114,9 @@ class BaseModel(nn.Module):
             self.test_all = copy.deepcopy(model.test_all)
             if str(type(model)) == "<class 'models.sequential.TiSASRec.TiSASRec'>":
                 self.user_min_interval = copy.deepcopy(model.user_min_interval)
-            # if 'DIPSRec_TI' in str(type(model)):
+            # if 'MIPSRec_TI' in str(type(model)):
             #     self.user_min_interval = copy.deepcopy(model.user_min_interval)
-            # if 'DIPSRec_TIP' in str(type(model)):
+            # if 'MIPSRec_TIP' in str(type(model)):
             #     self.user_min_interval = copy.deepcopy(model.user_min_interval)
 
             self.corpus = corpus  # reader object reference

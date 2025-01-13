@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" DIPSRec_TIP_base
+""" MIPSRec_1m
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class DIPSRec_TIP_baseBase(object):
+class MIPSRec_1mBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -29,8 +29,6 @@ class DIPSRec_TIP_baseBase(object):
                             help='Number of self-attention layers.')
         parser.add_argument('--num_heads', type=int, default=4,
                             help='Number of attention heads.')
-        parser.add_argument('--time_max', type=int, default=512,
-                            help='Max time intervals.')
         return parser        
 
     def _base_init(self, args, corpus):
@@ -38,41 +36,19 @@ class DIPSRec_TIP_baseBase(object):
         self.max_his = args.history_max
         self.num_layers = args.num_layers
         self.num_heads = args.num_heads
-        self.max_time = args.time_max
         self.len_range = torch.from_numpy(np.arange(self.max_his)).to(self.device)
         self._base_define_params()
         self.apply(self.init_weights)
         self.R = 0
         self.gram_matrix = 0  # 把item相似矩阵放在base里面
 
-        # 获得全部时间，并求得最大值、最小值、最小时间间隔，然后根据这些参数建模时间间隔embedding、确定索引方式
-        time_seqs = []
-        for u, user_df in corpus.all_df.groupby('user_id'):
-            time_seqs.extend(user_df['time'].values.tolist())
-        time_seqs = sorted(set([int(_) for _ in time_seqs]))
-        # time_b = torch.Tensor(time_seqs + [0xFFFFFFFF]).int()
-        # time_a = torch.Tensor([0] + time_seqs).int()
-        # time_intervals = time_b - time_a
-        # self.min_interval = min(time_intervals).item()
-        self.min_timestamp = time_seqs[0]
-        self.max_timestamp = time_seqs[-1]
-        self.min_interval = 0xFFFFFFFF
-        for idx in range(len(time_seqs) - 1):
-            self.min_interval = min(self.min_interval, time_seqs[idx+1] - time_seqs[idx])
-        if self.min_interval == 0:
-            self.min_interval = 1
-        self.min_timestamp_converted = 0
-        self.max_timestamp_converted = (self.max_timestamp - self.min_timestamp) / self.min_interval
-
 
     def _base_define_params(self):
         self.i_embeddings = nn.Embedding(self.item_num, self.emb_size)
         self.p_embeddings = nn.Embedding(self.max_his + 1, self.emb_size)
 
-        self.t_embeddings = nn.Embedding(self.max_time + 2, self.emb_size)
-
         self.transformer_block = nn.ModuleList([
-            layers.TransformerLayer_TIP(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
+            layers.TransformerLayer(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
                                     dropout=self.dropout, kq_same=False)
             for _ in range(self.num_layers)
         ])
@@ -82,20 +58,18 @@ class DIPSRec_TIP_baseBase(object):
         u_ids = feed_dict['user_id']
         i_ids = feed_dict['item_id']  # [batch_size, -1]
         history = feed_dict['history_items']  # [batch_size, history_max]
-        t_history = feed_dict['history_times']  # [batch_size, history_max]
         lengths = feed_dict['lengths']  # [batch_size] # 每一个用户序列的长度，取值1-20
-
         batch_size, seq_len = history.shape
         valid_his = (history > 0).long()
 
         interests_sim = self.gram_matrix[history]
         # 4种构建基于相似的兴趣的方式：
         # 0，不使用交互，传入自身Embedding直接作为兴趣
-        # his_vectors = self.i_embeddings(history)
+        his_vectors = self.i_embeddings(history)
         # 1，直接拿相似度矩阵，哈达玛乘一个全1向量
-        interests_sim = interests_sim
-        interests_input = interests_sim @ self.i_embeddings.weight
-        his_vectors = interests_input
+        # interests_sim = interests_sim
+        # interests_input = interests_sim @ self.i_embeddings.weight
+        # his_vectors = interests_input
         # 2，哈达玛乘一个用户全局交互
         # user_interaction = self.R[u_ids]
         # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
@@ -111,18 +85,7 @@ class DIPSRec_TIP_baseBase(object):
         # interests_input = interests_sim @ self.i_embeddings.weight
         # his_vectors = interests_input
 
-        # 获取每一个交互离最新交互的时间间隔current_interval
-        t_history = t_history
-        t_history = (t_history - self.min_timestamp).relu()
-        t_history = t_history / self.min_interval
-        max_values, _ = torch.max(t_history, dim=1)
-        current_interval = max_values.unsqueeze(-1).expand_as(t_history) - t_history
 
-        # 将时间间隔转化为时间Embedding
-        convert_pow = torch.log(torch.tensor(self.max_time)) / torch.log(torch.tensor(self.max_timestamp_converted))
-        idx = torch.pow(current_interval, convert_pow).int()
-        # t_ebds = self.t_embeddings(idx)
-        t_ebds = torch.zeros_like(self.t_embeddings(idx))
 
         # Position embedding
         # lengths:  [4, 2, 5]
@@ -137,7 +100,7 @@ class DIPSRec_TIP_baseBase(object):
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
-            his_vectors = block(his_vectors, t_ebds, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            his_vectors = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
             # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
@@ -150,11 +113,11 @@ class DIPSRec_TIP_baseBase(object):
 
         # 输出侧
         # 方法0：对最后一个输出embedding求内积
-        # prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
+        prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
         # 方法1：把所有的vectors放一起求内积均值
-        prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])
-        prediction = prediction.sum(-1).sum(-1)
-        prediction = prediction[:, :] / lengths[:, None]
+        # prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])
+        # prediction = prediction.sum(-1).sum(-1)
+        # prediction = prediction[:, :] / lengths[:, None]
 
 
         u_v = his_vector.repeat(1,i_ids.shape[1]).view(i_ids.shape[0],i_ids.shape[1],-1)
@@ -167,14 +130,14 @@ class DIPSRec_TIP_baseBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class DIPSRec_TIP_base(SequentialModel, DIPSRec_TIP_baseBase):
+class MIPSRec_1m(SequentialModel, MIPSRec_1mBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_TIP_baseBase.parse_model_args(parser)
+        parser = MIPSRec_1mBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -224,18 +187,18 @@ class DIPSRec_TIP_base(SequentialModel, DIPSRec_TIP_baseBase):
 
 
     def forward(self, feed_dict):
-        out_dict = DIPSRec_TIP_baseBase.forward(self, feed_dict)
+        out_dict = MIPSRec_1mBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class DIPSRec_TIP_baseImpression(ImpressionSeqModel, DIPSRec_TIP_baseBase):
+class MIPSRec_1mImpression(ImpressionSeqModel, MIPSRec_1mBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_TIP_baseBase.parse_model_args(parser)
+        parser = MIPSRec_1mBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -243,4 +206,4 @@ class DIPSRec_TIP_baseImpression(ImpressionSeqModel, DIPSRec_TIP_baseBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return DIPSRec_TIP_baseBase.forward(self, feed_dict)
+        return MIPSRec_1mBase.forward(self, feed_dict)

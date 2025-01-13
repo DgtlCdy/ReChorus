@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" RtDIPSRec
+""" RtMIPSRec
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class RtDIPSRecBase(object):
+class RtMIPSRecBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -263,14 +263,14 @@ class RtDIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class RtDIPSRec(SequentialModel, RtDIPSRecBase):
+class RtMIPSRec(SequentialModel, RtMIPSRecBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = RtDIPSRecBase.parse_model_args(parser)
+        parser = RtMIPSRecBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -320,18 +320,18 @@ class RtDIPSRec(SequentialModel, RtDIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = RtDIPSRecBase.forward(self, feed_dict)
+        out_dict = RtMIPSRecBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class RtDIPSRecImpression(ImpressionSeqModel, RtDIPSRecBase):
+class RtMIPSRecImpression(ImpressionSeqModel, RtMIPSRecBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = RtDIPSRecBase.parse_model_args(parser)
+        parser = RtMIPSRecBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -339,4 +339,4 @@ class RtDIPSRecImpression(ImpressionSeqModel, RtDIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return RtDIPSRecBase.forward(self, feed_dict)
+        return RtMIPSRecBase.forward(self, feed_dict)

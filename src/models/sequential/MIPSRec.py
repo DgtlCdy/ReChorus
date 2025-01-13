@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" DIPSRec_VAE
+""" MIPSRec
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class DIPSRec_VAEBase(object):
+class MIPSRecBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -47,13 +47,7 @@ class DIPSRec_VAEBase(object):
         self.i_embeddings = nn.Embedding(self.item_num, self.emb_size)
         self.p_embeddings = nn.Embedding(self.max_his + 1, self.emb_size)
 
-        self.transformer_block_vae = nn.ModuleList([
-            layers.TransformerLayer_VAE(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
-                                    dropout=self.dropout, kq_same=False)
-            for _ in range(self.num_layers)
-        ])
-
-        self.transformer_block_ebd = nn.ModuleList([
+        self.transformer_block = nn.ModuleList([
             layers.TransformerLayer(d_model=self.emb_size, d_ff=self.emb_size, n_heads=self.num_heads,
                                     dropout=self.dropout, kq_same=False)
             for _ in range(self.num_layers)
@@ -74,19 +68,24 @@ class DIPSRec_VAEBase(object):
         # his_vectors = self.i_embeddings(history)
         # 1，直接拿相似度矩阵，哈达玛乘一个全1向量
         interests_sim = interests_sim
+        interests_input = interests_sim @ self.i_embeddings.weight
+        his_vectors = interests_input
         # 2，哈达玛乘一个用户全局交互
         # user_interaction = self.R[u_ids]
         # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
         # interests_sim = torch.nn.functional.normalize(interests_sim, p=2)
+        # interests_input = interests_sim @ self.i_embeddings.weight
+        # his_vectors = interests_input
         # 3，哈达玛乘一个用户会话内交互，即lengths个交互
         # user_interaction = torch.zeros(batch_size, self.item_num).to(self.device)
         # for idx in range(batch_size):
         #     user_interaction[idx, history[idx, :lengths[idx]]] = 1
         # interests_sim = interests_sim[:, :, :] * user_interaction[:, None, :]
         # interests_sim = torch.nn.functional.normalize(interests_sim, p=2)
+        # interests_input = interests_sim @ self.i_embeddings.weight
+        # his_vectors = interests_input
 
-        interests_input = interests_sim @ self.i_embeddings.weight
-        his_vectors = interests_input
+
 
         # Position embedding
         # lengths:  [4, 2, 5]
@@ -100,25 +99,9 @@ class DIPSRec_VAEBase(object):
         attn_mask = torch.from_numpy(causality_mask).to(self.device)
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
-        for block in self.transformer_block_vae: # 现在只有一层
-            his_vectors_mu, his_vectors_logvar = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
-        his_vectors_stddev = torch.exp(0.5 * his_vectors_logvar)
-
-        # # 1，保持原来的情况，这种方案就是DIPSRec
-        # his_vectors = his_vectors_mu
-        # kl = 0
-        # 2，使用变分，重参数化
-        epsilon = torch.randn_like(his_vectors_mu)
-        if self.training:
-            his_vectors = his_vectors_mu + epsilon * his_vectors_stddev
-        else:
-            his_vectors = his_vectors_mu
-        kl = 0.5 * torch.mean(torch.sum(his_vectors_mu ** 2 + torch.exp(his_vectors_logvar) - 1. - his_vectors_logvar, dim=-1))
-
-        # 不好的方案：采样后再进一遍自注意力
-        # for block in self.transformer_block_ebd: # 现在只有一层
-        #     his_vectors = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
-
+        for block in self.transformer_block:
+            his_vectors = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
         # 只取最后一个item的embedding作为本次训练的预测embedding
@@ -128,11 +111,14 @@ class DIPSRec_VAEBase(object):
 
         i_vectors = self.i_embeddings(i_ids) # 获取阳性item和阴性item的embedding
 
-        # 取全部item的embedding作预测
+        # 输出侧
+        # 方法0：对最后一个输出embedding求内积
+        # prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
+        # 方法1：把所有的vectors放一起求内积均值
         prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])
         prediction = prediction.sum(-1).sum(-1)
         prediction = prediction[:, :] / lengths[:, None]
-        # prediction = (his_vector[:, None, :] * i_vectors).sum(-1) # 获取和阳性item、阴性item的内积，前者越大越好后者越小越好
+
 
         u_v = his_vector.repeat(1,i_ids.shape[1]).view(i_ids.shape[0],i_ids.shape[1],-1)
         i_v = i_vectors
@@ -141,17 +127,17 @@ class DIPSRec_VAEBase(object):
         # prediction是预测的内积，训练时返回对两个指定item的内积，测试时返回100个item的id？
         # u_v是预测的embedding
         # i_v是阳性和阴性的embedding
-        return {'prediction': prediction.view(batch_size, -1), 'kl': kl, 'u_v': u_v, 'i_v':i_v}
+        return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class DIPSRec_VAE(SequentialModel, DIPSRec_VAEBase):
+class MIPSRec(SequentialModel, MIPSRecBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_VAEBase.parse_model_args(parser)
+        parser = MIPSRecBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -177,15 +163,20 @@ class DIPSRec_VAE(SequentialModel, DIPSRec_VAEBase):
         gram_matrix = norm_mat.T.dot(norm_mat)
         gram_matrix =  torch.Tensor(gram_matrix).to(self.device)
 
+        # 方法0：取原生的相似度
         # self.gram_matrix = gram_matrix
         # return
+
+        # 方法1：取高阶相似度
         # item_embedding_r2 = gram_matrix @ self.R.T
         # gram_matrix_r2 = item_embedding_r2 @ item_embedding_r2.T
         # gram_matrix_r2 =  torch.nn.functional.normalize(gram_matrix_r2)
         # gram_matrix_r2 = gram_matrix_r2 / gram_matrix_r2.mean() * gram_matrix.mean()
-        # self.gram_matrix = gram_matrix * 0.5 + gram_matrix_r2 * 0.5
+        # gram_matrix = gram_matrix * 0.5 + gram_matrix_r2 * 0.5
+        # self.gram_matrix = gram_matrix * 0.7 + gram_matrix_r2 * 0.3
         # return
 
+        # 方法2：取top相似度
         # 取top500的相似度去做
         indices = torch.topk(gram_matrix, 500, dim=1).indices
         gram_matrix_topk = torch.zeros_like(gram_matrix)
@@ -194,19 +185,20 @@ class DIPSRec_VAE(SequentialModel, DIPSRec_VAEBase):
         gram_matrix_topk = torch.nn.functional.normalize(gram_matrix_topk, p=2)
         self.gram_matrix = gram_matrix_topk
 
+
     def forward(self, feed_dict):
-        out_dict = DIPSRec_VAEBase.forward(self, feed_dict)
+        out_dict = MIPSRecBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class DIPSRec_VAEImpression(ImpressionSeqModel, DIPSRec_VAEBase):
+class MIPSRecImpression(ImpressionSeqModel, MIPSRecBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_VAEBase.parse_model_args(parser)
+        parser = MIPSRecBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -214,4 +206,4 @@ class DIPSRec_VAEImpression(ImpressionSeqModel, DIPSRec_VAEBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return DIPSRec_VAEBase.forward(self, feed_dict)
+        return MIPSRecBase.forward(self, feed_dict)

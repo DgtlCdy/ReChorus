@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" DIPSRec_4mi
+""" MIPSRec_2i
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class DIPSRec_4miBase(object):
+class MIPSRec_2iBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -100,7 +100,7 @@ class DIPSRec_4miBase(object):
         attn_mask_full = torch.ones_like(attn_mask)
         # attn_mask = valid_his.view(batch_size, 1, 1, seq_len)
         for block in self.transformer_block:
-            his_vectors = block(his_vectors, attn_mask_full) # transformer的输出维度和输入维度是一样的
+            his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
             # his_vectors = block(his_vectors, attn_mask) # transformer的输出维度和输入维度是一样的
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
@@ -130,14 +130,14 @@ class DIPSRec_4miBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class DIPSRec_4mi(SequentialModel, DIPSRec_4miBase):
+class MIPSRec_2i(SequentialModel, MIPSRec_2iBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_4miBase.parse_model_args(parser)
+        parser = MIPSRec_2iBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -187,18 +187,18 @@ class DIPSRec_4mi(SequentialModel, DIPSRec_4miBase):
 
 
     def forward(self, feed_dict):
-        out_dict = DIPSRec_4miBase.forward(self, feed_dict)
+        out_dict = MIPSRec_2iBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class DIPSRec_4miImpression(ImpressionSeqModel, DIPSRec_4miBase):
+class MIPSRec_2iImpression(ImpressionSeqModel, MIPSRec_2iBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_4miBase.parse_model_args(parser)
+        parser = MIPSRec_2iBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -206,4 +206,4 @@ class DIPSRec_4miImpression(ImpressionSeqModel, DIPSRec_4miBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return DIPSRec_4miBase.forward(self, feed_dict)
+        return MIPSRec_2iBase.forward(self, feed_dict)

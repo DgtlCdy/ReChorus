@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" TiDIPSRec
+""" RtMIPSRec_1t
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class TiDIPSRecBase(object):
+class RtMIPSRec_1tBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -183,9 +183,9 @@ class TiDIPSRecBase(object):
         position = (lengths[:, None] - self.len_range[None, :seq_len]) * valid_his
         pos_vectors = self.p_embeddings(position)
 
-        # his_vectors = his_vectors + pos_vectors
+        his_vectors = his_vectors + pos_vectors
         # his_vectors = his_vectors + pos_vectors + t_ebds_sa
-        his_vectors = his_vectors + pos_vectors + t_ebds_m
+        # his_vectors = his_vectors + pos_vectors + t_ebds_m
 
         # Self-attention
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32)) # 只取下三角的矩阵，表示seq的邻接关系
@@ -263,14 +263,14 @@ class TiDIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class TiDIPSRec(SequentialModel, TiDIPSRecBase):
+class RtMIPSRec_1t(SequentialModel, RtMIPSRec_1tBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = RtMIPSRec_1tBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -320,18 +320,18 @@ class TiDIPSRec(SequentialModel, TiDIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = TiDIPSRecBase.forward(self, feed_dict)
+        out_dict = RtMIPSRec_1tBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
+class RtMIPSRec_1tImpression(ImpressionSeqModel, RtMIPSRec_1tBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = TiDIPSRecBase.parse_model_args(parser)
+        parser = RtMIPSRec_1tBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -339,4 +339,4 @@ class TiDIPSRecImpression(ImpressionSeqModel, TiDIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return TiDIPSRecBase.forward(self, feed_dict)
+        return RtMIPSRec_1tBase.forward(self, feed_dict)

@@ -76,8 +76,8 @@ def main():
         data_dict[phase] = model_name.Dataset(model, corpus, phase)
         data_dict[phase].prepare()
 
-    # 对DIPSRec系模型需要构建物品间相似度矩阵
-    if 'DIPSRec' in init_args.model_name:
+    # 对MIPSRec系模型需要构建物品间相似度矩阵
+    if 'MIPSRec' in init_args.model_name:
         model.get_gram_matrix(data_dict['train'])
 
     # Run model
@@ -164,19 +164,19 @@ if __name__ == '__main__':
 
     is_handler_added = 0  # for logging repeat issue.
 
-    # for model_name_default in ['Caser', 'GRU4Rec', 'SASRec', 'ComiRec', 'TiMiRec', 'TiSASRec','DIPSRec', 'TiDIPSRec']:
-    # for model_name_default in ['ComiRec', 'TiMiRec', 'TiSASRec','DIPSRec', 'TiDIPSRec', 'DIPSRec_1m', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
-    # for model_name_default in ['DIPSRec_TIP', 'DIPSRec_TIP_base', 'DIPSRec', 'TiSASRec']:
-    # for model_name_default in ['DIPSRec_TIP']:
-    # for model_name_default in ['DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
-    # for model_name_default in ['DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
-    # for model_name_default in ['DIPSRec']:
-    # for model_name_default in ['TiDIPSRec_32', 'TiDIPSRec_64', 'DIPSRec']: # 'DIPSRec'就是128
-    # for model_name_default in ['TiDIPSRec_nop', 'TiDIPSRec_nop_2ebd']:
+    # for model_name_default in ['Caser', 'GRU4Rec', 'SASRec', 'ComiRec', 'TiMiRec', 'TiSASRec','MIPSRec', 'RtMIPSRec']:
+    # for model_name_default in ['ComiRec', 'TiMiRec', 'TiSASRec','MIPSRec', 'RtMIPSRec', 'MIPSRec_1m', 'MIPSRec_2i', 'MIPSRec_3p', 'MIPSRec_4mi', 'MIPSRec_5mp', 'MIPSRec_6ip']:
+    # for model_name_default in ['MIPSRec_TIP', 'MIPSRec_TIP_base', 'MIPSRec', 'TiSASRec']:
+    # for model_name_default in ['MIPSRec_TIP']:
+    # for model_name_default in ['MIPSRec_2i', 'MIPSRec_3p', 'MIPSRec_4mi', 'MIPSRec_5mp', 'MIPSRec_6ip']:
+    # for model_name_default in ['MIPSRec_3p', 'MIPSRec_4mi', 'MIPSRec_5mp', 'MIPSRec_6ip']:
+    # for model_name_default in ['MIPSRec']:
+    # for model_name_default in ['RtMIPSRec_32', 'RtMIPSRec_64', 'MIPSRec']: # 'MIPSRec'就是128
+    # for model_name_default in ['RtMIPSRec_nop', 'RtMIPSRec_nop_2ebd']:
     for model_name_default in ['FPMC']:
-    # for model_name_default in ['TiDIPSRec_0d0',  'TiDIPSRec_0d1', 'TiDIPSRec', 'TiDIPSRec_0d001']:
-    # for model_name_default in ['TiDIPSRec_1t',  'TiDIPSRec_2f', 'TiDIPSRec_3i', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
-    # for model_name_default in ['SASRec', 'DIPSRec', 'TiDIPSRec']:
+    # for model_name_default in ['RtMIPSRec_0d0',  'RtMIPSRec_0d1', 'RtMIPSRec', 'RtMIPSRec_0d001']:
+    # for model_name_default in ['RtMIPSRec_1t',  'RtMIPSRec_2f', 'RtMIPSRec_3i', 'MIPSRec_2i', 'MIPSRec_3p', 'MIPSRec_4mi', 'MIPSRec_5mp', 'MIPSRec_6ip']:
+    # for model_name_default in ['SASRec', 'MIPSRec', 'RtMIPSRec']:
         # for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
         # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'FourSquare_CA']:
         # for dataset_default in ['ML_1M_TOPK']:

@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" DIPSRec_5mp
+""" MIPSRec_5mp
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class DIPSRec_5mpBase(object):
+class MIPSRec_5mpBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -130,14 +130,14 @@ class DIPSRec_5mpBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class DIPSRec_5mp(SequentialModel, DIPSRec_5mpBase):
+class MIPSRec_5mp(SequentialModel, MIPSRec_5mpBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_5mpBase.parse_model_args(parser)
+        parser = MIPSRec_5mpBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -187,18 +187,18 @@ class DIPSRec_5mp(SequentialModel, DIPSRec_5mpBase):
 
 
     def forward(self, feed_dict):
-        out_dict = DIPSRec_5mpBase.forward(self, feed_dict)
+        out_dict = MIPSRec_5mpBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class DIPSRec_5mpImpression(ImpressionSeqModel, DIPSRec_5mpBase):
+class MIPSRec_5mpImpression(ImpressionSeqModel, MIPSRec_5mpBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DIPSRec_5mpBase.parse_model_args(parser)
+        parser = MIPSRec_5mpBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -206,4 +206,4 @@ class DIPSRec_5mpImpression(ImpressionSeqModel, DIPSRec_5mpBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return DIPSRec_5mpBase.forward(self, feed_dict)
+        return MIPSRec_5mpBase.forward(self, feed_dict)
