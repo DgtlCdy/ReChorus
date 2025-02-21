@@ -126,6 +126,7 @@ class BaseRunner(object):
         try:
             for epoch in range(self.epoch):
                 # Fit
+                utils.write_log(f'epoch: {epoch}.', f'cal_time.txt')
                 self._check_time()
                 gc.collect()
                 torch.cuda.empty_cache()
