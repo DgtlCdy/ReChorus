@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as fn
+from utils import utils
 
 
 class MultiHeadAttention(nn.Module):
@@ -244,7 +245,7 @@ class TransformerLayer_Rt(nn.Module):
         context = self.layer_norm2(context)
         output_t = self.linear_t1(context).relu()
         output_t = self.linear_t2(output)
-        output_t = torch.softmax(output_t, dim=-1)
+        # output_t = torch.softmax(output_t, dim=-1)
 
         return output, output_t
 

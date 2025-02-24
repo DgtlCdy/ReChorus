@@ -13,6 +13,9 @@ Note:
 import torch
 import torch.nn as nn
 import numpy as np
+import sys
+sys.path.append('../..')
+from utils import utils
 
 from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
@@ -57,6 +60,10 @@ class SASRecBase(object):
 
         valid_his = (history > 0).long()
         his_vectors = self.i_embeddings(history)
+
+        item_embeddings = self.i_embeddings.weight
+        utils.draw_points(item_embeddings)
+
 
         # Position embedding
         # lengths:  [4, 2, 5]

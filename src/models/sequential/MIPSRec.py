@@ -14,7 +14,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 import scipy.sparse as sp
-import utils
+import sys
+sys.path.append('../..')
+from utils import utils
 
 from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
@@ -61,6 +63,11 @@ class MIPSRecBase(object):
         lengths = feed_dict['lengths']  # [batch_size] # 每一个用户序列的长度，取值1-20
         batch_size, seq_len = history.shape
         valid_his = (history > 0).long()
+
+        # dengchao: 展示数据
+        item_embeddings = self.i_embeddings.weight
+        interest_embeddings = self.gram_matrix @ self.i_embeddings.weight
+        utils.draw_points(interest_embeddings)
 
         interests_sim = self.gram_matrix[history]
         # 4种构建基于相似的兴趣的方式：

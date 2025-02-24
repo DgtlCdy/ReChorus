@@ -27,7 +27,7 @@ def parse_global_args(parser):
                         help='Logging file path')
     parser.add_argument('--random_seed', type=int, default=0,
                         help='Random seed of numpy and pytorch')
-    parser.add_argument('--load', type=int, default=0,
+    parser.add_argument('--load', type=int, default=1,
                         help='Whether load model and continue to train')
     parser.add_argument('--train', type=int, default=1,
                         help='To train the model or not.')
@@ -85,8 +85,8 @@ def main():
     logging.info('Test Before Training: ' + runner.print_res(data_dict['test']))
     if args.load > 0:
         model.load_model()
-    if args.train > 0:
-        runner.train(data_dict)
+    # if args.train > 0:
+    #     runner.train(data_dict)
 
     # Evaluate final results
     eval_res = runner.print_res(data_dict['dev'])
@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
     is_handler_added = 0  # for logging repeat issue.
 
-    for model_name_default in ['Caser', 'GRU4Rec', 'SASRec', 'ComiRec', 'TiMiRec', 'TiSASRec','MIPSRec', 'RtMIPSRec']:
+    # for model_name_default in ['Caser', 'GRU4Rec', 'SASRec', 'ComiRec', 'TiMiRec', 'TiSASRec','MIPSRec', 'RtMIPSRec']:
     # for model_name_default in ['ComiRec', 'TiMiRec', 'TiSASRec','DIPSRec', 'TiDIPSRec', 'DIPSRec_1m', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['DIPSRec_TIP', 'DIPSRec_TIP_base', 'DIPSRec', 'TiSASRec']:
     # for model_name_default in ['DIPSRec_TIP']:
@@ -177,14 +177,17 @@ if __name__ == '__main__':
     # for model_name_default in ['TiDIPSRec_0d0',  'TiDIPSRec_0d1', 'TiDIPSRec', 'TiDIPSRec_0d001']:
     # for model_name_default in ['TiDIPSRec_1t',  'TiDIPSRec_2f', 'TiDIPSRec_3i', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['SASRec', 'DIPSRec', 'TiDIPSRec']:
+    # for model_name_default in ['SASRec']:
     # for model_name_default in ['MIPSRec']:
-    # for model_name_default in ['RtMIPSRec']:
-        # for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
+    for model_name_default in ['RtMIPSRec']:
+    # for model_name_default in ['MIPSRec_hw05', 'MIPSRec_hw06', 'MIPSRec_hw07', 'MIPSRec_hw08', 'MIPSRec_hw09', 'MIPSRec_hw10']:
+        for dataset_default in ['Video_Games']:
         # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'FourSquare_CA']:
         # for dataset_default in ['ML_1M_TOPK']:
         # for dataset_default in ['FourSquare_TKY']:
         # for dataset_default in ['Beauty', 'Video_Games', 'FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
-        for dataset_default in ['Video_Games', 'FourSquare_NYC', 'Gowalla']:
+        # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
+        # for dataset_default in ['Video_Games', 'FourSquare_NYC', 'Gowalla']:
             init_parser = argparse.ArgumentParser(description='Model')
             init_parser.add_argument('--model_name', type=str, default=model_name_default, help='Choose a model to run.')
             init_parser.add_argument('--model_mode', type=str, default='', 
@@ -237,7 +240,7 @@ if __name__ == '__main__':
             logging.info(init_args)
             # logging.info(f'test: {model_name_default}, {dataset_default}.')
 
-            utils.write_log(f'{init_args.model_name}+{args.dataset}: start.', f'cal_time.txt')
+            # utils.write_log(f'{init_args.model_name}+{args.dataset}: start.', f'cal_time.txt')
             main()
-            utils.write_log(f'{init_args.model_name}+{args.dataset}: end.', f'cal_time.txt')
-            utils.write_log(f' ', f'cal_time.txt')
+            # utils.write_log(f'{init_args.model_name}+{args.dataset}: end.', f'cal_time.txt')
+            # utils.write_log(f' ', f'cal_time.txt')

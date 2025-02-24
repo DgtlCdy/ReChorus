@@ -7,7 +7,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 import scipy.sparse as sp
-import utils
+import sys
+sys.path.append('../..')
+from utils import utils
 
 from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
@@ -115,7 +117,12 @@ class RtMIPSRecBase(object):
         attn_mask = torch.from_numpy(causality_mask).to(torch.device('cuda'))
         attn_mask_full = torch.ones_like(attn_mask) # RtMIPSRec不同于SASRec架构，其不使用顺序掩码
         for block in self.transformer_block:
-            his_vectors, weight_t = block(his_vectors, attn_mask_full) # 分别得到编码后的混合兴趣和频域信息
+            his_vectors, output_t = block(his_vectors, attn_mask_full) # 分别得到编码后的混合兴趣和频域信息
+
+
+
+        weight_t = torch.softmax(output_t, dim=-1)
+
         his_vectors = his_vectors * valid_his[:, :, None].float()
 
         # 正则化时间间隔粒度，将其单位调整为秒，然后从周期角度指定频域的边界，这里存在冗余编码
@@ -133,16 +140,33 @@ class RtMIPSRecBase(object):
         ratio = (last_element - first_element) / length
         period = (first_element + (ratio * torch.arange(length))).float().to(self.device)
         omega = (2 * torch.pi / period).to(self.device)
+
+        # # 这里为了打印出来softmax之前的数值，然后将其softmax供后续使用
+        # # output_t_valid = output_t * valid_his[:, :, None].float()
+        # idx_session = utils.draw_frequency(period, weight_t, valid_his)
+
         # 通过傅里叶级数公式获取各频段下的相对权重alpha
-        time_attenuation = period[None, None, :] / (period[None, None, :] + 0.01 * current_interval[:, :, None]) # 添加周期性损失
+        time_attenuation = period[None, None, :] / (period[None, None, :] + 0 * current_interval[:, :, None]) # 添加周期性损失
         alpha = weight_t * time_attenuation * ((torch.cos(current_interval[:, :, None] * omega[None, None, :]) + 1) / 2)
         numda = alpha.sum(-1)
+
+
 
         # 获取阳性item和阴性item的embedding
         i_vectors = self.i_embeddings(i_ids)
         # 获取加权后的混合兴趣表示
         his_vectors = his_vectors * numda[:, :, None]
         his_vectors = his_vectors * valid_his[:, :, None].float()
+
+        # 第一步：画频谱
+        idx_session = utils.draw_frequency(period, weight_t, valid_his, u_ids[0])
+        if idx_session != -1 and u_ids[0] == 513:
+            # 第二步：画权重分布图，按时间排
+            if len(torch.unique(current_interval[idx_session])) >= 10:
+                # utils.draw_weight_time(idx_session, numda, current_interval)
+                pass
+            # 第三步：画权重分布图，按兴趣和实际物品的相似度排
+            utils.draw_weight_sim(idx_session, numda, his_vectors[idx_session] @ i_vectors[idx_session, 0])
 
         # 输出侧，把所有的vectors放一起求内积，然后求加权匹配值
         prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])
