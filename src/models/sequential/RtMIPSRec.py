@@ -161,12 +161,17 @@ class RtMIPSRecBase(object):
         # 第一步：画频谱
         idx_session = utils.draw_frequency(period, weight_t, valid_his, u_ids[0])
         if idx_session != -1 and u_ids[0] == 513:
-            # 第二步：画权重分布图，按时间排
+
             if len(torch.unique(current_interval[idx_session])) >= 10:
+                # 第二步：画权重分布图，按时间排
                 # utils.draw_weight_time(idx_session, numda, current_interval)
+
+                # 第三步：画权重分布图，按兴趣和实际物品的相似度排
+                # utils.draw_weight_sim(idx_session, numda, his_vectors[idx_session] @ i_vectors[idx_session, 0])
+
+                # 第四步：画时间和相似度的关联，如果很散乱没有规律那就复合预期
+                utils.draw_weight_sim_time(idx_session, current_interval[idx_session], his_vectors[idx_session] @ i_vectors[idx_session, 0])
                 pass
-            # 第三步：画权重分布图，按兴趣和实际物品的相似度排
-            utils.draw_weight_sim(idx_session, numda, his_vectors[idx_session] @ i_vectors[idx_session, 0])
 
         # 输出侧，把所有的vectors放一起求内积，然后求加权匹配值
         prediction = (his_vectors[:, None, :, :] * i_vectors[:, :, None, :])

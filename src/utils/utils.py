@@ -185,9 +185,9 @@ def draw_frequency(period_torch, frequency_torch, valid_torch, u_id):
     count = 0
     for i, session, valid_tag in zip(range(256), frequency, valid):
         if valid_tag[-1] == 1 and u_id == 513:
-            for j in session:
-                plt.plot(x, j, marker='o', linestyle='-', color='#FF6B6B')
-            plt.show()
+            # for j in session:
+            #     plt.plot(x, j, marker='o', linestyle='-', color='#FF6B6B')
+            # plt.show()
             idx = i
             break
 
@@ -213,6 +213,20 @@ def draw_weight_sim(idx_session, numda_torch, sim_data_torch):
 
     x = sim_data
     y = numda[idx_session]
+
+    result_2d = np.column_stack((x, y))
+    plt.scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
+    plt.show()
+    return 0
+
+
+def draw_weight_sim_time(idx_session, current_interval_torch, sim_data_torch):
+    current_interval = current_interval_torch.detach().cpu().numpy()
+    sim_data = sim_data_torch.detach().cpu().numpy()
+
+
+    x = current_interval
+    y = sim_data
 
     result_2d = np.column_stack((x, y))
     plt.scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
