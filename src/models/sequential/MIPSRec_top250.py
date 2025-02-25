@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" MIPSRec
+""" MIPSRec_top250
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class MIPSRecBase(object):
+class MIPSRec_top250Base(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -130,14 +130,14 @@ class MIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class MIPSRec(SequentialModel, MIPSRecBase):
+class MIPSRec_top250(SequentialModel, MIPSRec_top250Base):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = MIPSRecBase.parse_model_args(parser)
+        parser = MIPSRec_top250Base.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -177,7 +177,7 @@ class MIPSRec(SequentialModel, MIPSRecBase):
 
         # 方法2：取top相似度
         # 取top500的相似度去做
-        indices = torch.topk(gram_matrix, 500, dim=1).indices
+        indices = torch.topk(gram_matrix, 250, dim=1).indices
         gram_matrix_topk = torch.zeros_like(gram_matrix)
         gram_matrix_topk.scatter_(1, indices, gram_matrix.gather(1, indices))
 
@@ -186,18 +186,18 @@ class MIPSRec(SequentialModel, MIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = MIPSRecBase.forward(self, feed_dict)
+        out_dict = MIPSRec_top250Base.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class MIPSRecImpression(ImpressionSeqModel, MIPSRecBase):
+class MIPSRec_top250Impression(ImpressionSeqModel, MIPSRec_top250Base):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = MIPSRecBase.parse_model_args(parser)
+        parser = MIPSRec_top250Base.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -205,4 +205,4 @@ class MIPSRecImpression(ImpressionSeqModel, MIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return MIPSRecBase.forward(self, feed_dict)
+        return MIPSRec_top250Base.forward(self, feed_dict)

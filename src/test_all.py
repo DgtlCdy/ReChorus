@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
     is_handler_added = 0  # for logging repeat issue.
 
-    for model_name_default in ['Caser', 'GRU4Rec', 'SASRec', 'ComiRec', 'TiMiRec', 'TiSASRec','MIPSRec', 'RtMIPSRec']:
+    # for model_name_default in ['Caser', 'GRU4Rec', 'SASRec', 'ComiRec', 'TiMiRec', 'TiSASRec','MIPSRec', 'RtMIPSRec']:
     # for model_name_default in ['ComiRec', 'TiMiRec', 'TiSASRec','DIPSRec', 'TiDIPSRec', 'DIPSRec_1m', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
     # for model_name_default in ['DIPSRec_TIP', 'DIPSRec_TIP_base', 'DIPSRec', 'TiSASRec']:
     # for model_name_default in ['DIPSRec_TIP']:
@@ -179,12 +179,19 @@ if __name__ == '__main__':
     # for model_name_default in ['SASRec', 'DIPSRec', 'TiDIPSRec']:
     # for model_name_default in ['MIPSRec']:
     # for model_name_default in ['RtMIPSRec']:
-        # for dataset_default in ['Beauty', 'Video_Games', 'Grocery_and_Gourmet_Food', 'ML_1M_TOPK']:
+    # for model_name_default in ['MIPSRec_hw05', 'MIPSRec_hw06', 'MIPSRec_hw07', 'MIPSRec_hw08', 'MIPSRec_hw09', 'MIPSRec_hw10']:
+    # for model_name_default in ['MIPSRec_top125', 'MIPSRec_top250', 'MIPSRec_top500', 'MIPSRec_top1000', 'MIPSRec_top2000', 'MIPSRec_topall']:
+    for model_name_default in ['RtMIPSRec_frequency32', 'RtMIPSRec_frequency64', 'RtMIPSRec_frequency128', 'RtMIPSRec_frequency512', 'RtMIPSRec_frequency256']:
+        for dataset_default in ['Video_Games', 'Beauty', 'FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
         # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'FourSquare_CA']:
         # for dataset_default in ['ML_1M_TOPK']:
         # for dataset_default in ['FourSquare_TKY']:
-        # for dataset_default in ['Beauty', 'Video_Games', 'FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
-        for dataset_default in ['Video_Games', 'FourSquare_NYC', 'Gowalla']:
+    # for model_name_default in ['MIPSRec_top250', 'MIPSRec_top1000', 'MIPSRec_top2000', 'MIPSRec_topall']:
+
+        # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
+        # for dataset_default in ['Video_Games', 'Beauty']:
+        # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
+        # for dataset_default in ['Gowalla']:
             init_parser = argparse.ArgumentParser(description='Model')
             init_parser.add_argument('--model_name', type=str, default=model_name_default, help='Choose a model to run.')
             init_parser.add_argument('--model_mode', type=str, default='', 
@@ -237,7 +244,7 @@ if __name__ == '__main__':
             logging.info(init_args)
             # logging.info(f'test: {model_name_default}, {dataset_default}.')
 
-            utils.write_log(f'{init_args.model_name}+{args.dataset}: start.', f'cal_time.txt')
+            # utils.write_log(f'{init_args.model_name}+{args.dataset}: start.', f'cal_time.txt')
             main()
-            utils.write_log(f'{init_args.model_name}+{args.dataset}: end.', f'cal_time.txt')
-            utils.write_log(f' ', f'cal_time.txt')
+            # utils.write_log(f'{init_args.model_name}+{args.dataset}: end.', f'cal_time.txt')
+            # utils.write_log(f' ', f'cal_time.txt')

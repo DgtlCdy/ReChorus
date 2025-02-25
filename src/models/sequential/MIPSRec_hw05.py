@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" MIPSRec
+""" MIPSRec_hw05
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class MIPSRecBase(object):
+class MIPSRec_hw05Base(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -130,14 +130,14 @@ class MIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class MIPSRec(SequentialModel, MIPSRecBase):
+class MIPSRec_hw05(SequentialModel, MIPSRec_hw05Base):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = MIPSRecBase.parse_model_args(parser)
+        parser = MIPSRec_hw05Base.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -172,8 +172,7 @@ class MIPSRec(SequentialModel, MIPSRecBase):
         gram_matrix_r2 = item_embedding_r2 @ item_embedding_r2.T
         gram_matrix_r2 =  torch.nn.functional.normalize(gram_matrix_r2)
         gram_matrix_r2 = gram_matrix_r2 / gram_matrix_r2.mean() * gram_matrix.mean()
-        gram_matrix = gram_matrix * 0.8 + gram_matrix_r2 * 0.2
-        # return
+        gram_matrix = gram_matrix * 0.5 + gram_matrix_r2 * 0.5
 
         # 方法2：取top相似度
         # 取top500的相似度去做
@@ -186,18 +185,18 @@ class MIPSRec(SequentialModel, MIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = MIPSRecBase.forward(self, feed_dict)
+        out_dict = MIPSRec_hw05Base.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class MIPSRecImpression(ImpressionSeqModel, MIPSRecBase):
+class MIPSRec_hw05Impression(ImpressionSeqModel, MIPSRec_hw05Base):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = MIPSRecBase.parse_model_args(parser)
+        parser = MIPSRec_hw05Base.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -205,4 +204,4 @@ class MIPSRecImpression(ImpressionSeqModel, MIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return MIPSRecBase.forward(self, feed_dict)
+        return MIPSRec_hw05Base.forward(self, feed_dict)

@@ -13,7 +13,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class RtMIPSRecBase(object):
+class RtMIPSRec_frequency128Base(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -22,7 +22,7 @@ class RtMIPSRecBase(object):
                             help='Number of self-attention layers.')
         parser.add_argument('--num_heads', type=int, default=4,
                             help='Number of attention heads.')
-        parser.add_argument('--time_size', type=int, default=256,
+        parser.add_argument('--time_size', type=int, default=128,
                             help='Size of embedding vectors.')
         parser.add_argument('--max_time', type=int, default=256,
                             help='Max time intervals.')
@@ -78,7 +78,7 @@ class RtMIPSRecBase(object):
         self.check_list = []
 
         # 算法输入部分
-        u_ids = feed_dict['user_id']  # 用户id，RtMIPSRec不对用户特征直接建模，因此不使用用户id信息
+        u_ids = feed_dict['user_id']  # 用户id，RtMIPSRec_frequency128不对用户特征直接建模，因此不使用用户id信息
         i_ids = feed_dict['item_id']  # 目标item的id，训练时为1阳性item+1阴性item，验证和测试时为1阳性item+999阴性item
         history = feed_dict['history_items']  # 会话的item序列
         t_history = feed_dict['history_times']  # 历史交互的发生时间
@@ -113,7 +113,7 @@ class RtMIPSRecBase(object):
         # 进行自注意编码
         causality_mask = np.tril(np.ones((1, 1, seq_len, seq_len), dtype=np.int32))
         attn_mask = torch.from_numpy(causality_mask).to(torch.device('cuda'))
-        attn_mask_full = torch.ones_like(attn_mask) # RtMIPSRec不同于SASRec架构，其不使用顺序掩码
+        attn_mask_full = torch.ones_like(attn_mask) # RtMIPSRec_frequency128不同于SASRec架构，其不使用顺序掩码
         for block in self.transformer_block:
             his_vectors, weight_t = block(his_vectors, attn_mask_full) # 分别得到编码后的混合兴趣和频域信息
         his_vectors = his_vectors * valid_his[:, :, None].float()
@@ -152,14 +152,14 @@ class RtMIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1)}
 
 
-class RtMIPSRec(SequentialModel, RtMIPSRecBase):
+class RtMIPSRec_frequency128(SequentialModel, RtMIPSRec_frequency128Base):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = RtMIPSRecBase.parse_model_args(parser)
+        parser = RtMIPSRec_frequency128Base.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
 
     def __init__(self, args, corpus):
@@ -207,5 +207,5 @@ class RtMIPSRec(SequentialModel, RtMIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = RtMIPSRecBase.forward(self, feed_dict)
+        out_dict = RtMIPSRec_frequency128Base.forward(self, feed_dict)
         return {'prediction': out_dict['prediction']}
