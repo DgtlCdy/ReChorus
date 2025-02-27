@@ -325,7 +325,7 @@ class DiffusionCore(nn.Module):
         return x_prev
 
 
-class DiffuRecBase(object):
+class DiffuRec_baseBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--hidden_size', type=int, default=64, help='Hidden size of model')     # 源模型默认128
@@ -437,7 +437,7 @@ class DiffuRecBase(object):
         }
 
 
-class DiffuRec(SequentialModel, DiffuRecBase):
+class DiffuRec_base(SequentialModel, DiffuRec_baseBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = [
@@ -448,7 +448,7 @@ class DiffuRec(SequentialModel, DiffuRecBase):
 
     @staticmethod
     def parse_model_args(parser):
-        parser = DiffuRecBase.parse_model_args(parser)
+        parser = DiffuRec_baseBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
 
     def __init__(self, args, corpus):
@@ -456,20 +456,20 @@ class DiffuRec(SequentialModel, DiffuRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return DiffuRecBase.forward(self, feed_dict)
+        return DiffuRec_baseBase.forward(self, feed_dict)
 
     def loss(self, out_dict):
-        return DiffuRecBase.loss(self, out_dict)
+        return DiffuRec_baseBase.loss(self, out_dict)
 
 # Impression模式，模仿写的，不知道能不能用
-# class DiffuRecImpression(ImpressionSeqModel, DiffuRecBase):
+# class DiffuRec_baseImpression(ImpressionSeqModel, DiffuRec_baseBase):
 #     reader = 'ImpressionSeqReader'
 #     runner = 'ImpressionRunner'
-#     extra_log_args = DiffuRec.extra_log_args
+#     extra_log_args = DiffuRec_base.extra_log_args
 #
 #     @staticmethod
 #     def parse_model_args(parser):
-#         parser = DiffuRecBase.parse_model_args(parser)
+#         parser = DiffuRec_baseBase.parse_model_args(parser)
 #         return ImpressionSeqModel.parse_model_args(parser)
 #
 #     def __init__(self, args, corpus):
@@ -477,4 +477,4 @@ class DiffuRec(SequentialModel, DiffuRecBase):
 #         self._base_init(args, corpus)
 #
 #     def forward(self, feed_dict):
-#         return DiffuRecBase.forward(self, feed_dict)
+#         return DiffuRec_baseBase.forward(self, feed_dict)
