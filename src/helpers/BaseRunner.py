@@ -165,8 +165,10 @@ class BaseRunner(object):
                 logging.info(logging_str)
 
                 if self.early_stop > 0 and self.eval_termination(main_metric_results):
+                    # dengchao: 不使用早停测试一下
                     logging.info("Early stop at %d based on dev result." % (epoch + 1))
                     break
+                    # pass
 
         except KeyboardInterrupt:
             logging.info("Early stop manually")

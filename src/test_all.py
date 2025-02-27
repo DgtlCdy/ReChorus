@@ -181,7 +181,10 @@ if __name__ == '__main__':
     # for model_name_default in ['RtMIPSRec']:
     # for model_name_default in ['MIPSRec_hw05', 'MIPSRec_hw06', 'MIPSRec_hw07', 'MIPSRec_hw08', 'MIPSRec_hw09', 'MIPSRec_hw10']:
     # for model_name_default in ['MIPSRec_top125', 'MIPSRec_top250', 'MIPSRec_top500', 'MIPSRec_top1000', 'MIPSRec_top2000', 'MIPSRec_topall']:
-    for model_name_default in ['RtMIPSRec_frequency32', 'RtMIPSRec_frequency64', 'RtMIPSRec_frequency128', 'RtMIPSRec_frequency512', 'RtMIPSRec_frequency256']:
+    # for model_name_default in ['RtMIPSRec_frequency32', 'RtMIPSRec_frequency64', 'RtMIPSRec_frequency128', 'RtMIPSRec_frequency512', 'RtMIPSRec_frequency256']:
+    # for model_name_default in ['RtMIPSRec_ebd1_sq', 'RtMIPSRec_ebd2_line', 'RtMIPSRec_ebd3_sqr', \
+    #                            'RtMIPSRec_frq1_sq', 'RtMIPSRec_frq2_line', 'RtMIPSRec_frq3_sqr']
+    for model_name_default in ['DiffuRec']:
         for dataset_default in ['Video_Games', 'Beauty', 'FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
         # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'FourSquare_CA']:
         # for dataset_default in ['ML_1M_TOPK']:
