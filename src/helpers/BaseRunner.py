@@ -126,6 +126,7 @@ class BaseRunner(object):
         try:
             for epoch in range(self.epoch):
                 # Fit
+                # utils.write_log(f'epoch: {epoch}.', f'cal_time.txt')
                 self._check_time()
                 gc.collect()
                 torch.cuda.empty_cache()
@@ -164,8 +165,10 @@ class BaseRunner(object):
                 logging.info(logging_str)
 
                 if self.early_stop > 0 and self.eval_termination(main_metric_results):
+                    # dengchao: 不使用早停测试一下
                     logging.info("Early stop at %d based on dev result." % (epoch + 1))
                     break
+                    # pass
 
         except KeyboardInterrupt:
             logging.info("Early stop manually")
