@@ -141,9 +141,10 @@ import numpy as np
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
-def draw_points_1(X_tensor):
+def draw_points_1(X_tensor, fig, axs):
+
     # X = np.random.randn(1000, 64)
-    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
     plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
 
     X = X_tensor.detach().cpu().numpy()
@@ -163,23 +164,25 @@ def draw_points_1(X_tensor):
     X_2d = tsne.fit_transform(X_scaled)
 
     # 绘制散点图
-    plt.figure(figsize=(15, 15))
-    plt.scatter(X_2d[:, 0], X_2d[:, 1], 
-                alpha=0.6,    # 设置透明度
-                edgecolors='w', # 点边缘颜色
-                s=40)         # 点大小
+    # plt.figure(figsize=(15, 15))
+    axs[0].scatter(X_2d[:, 0], X_2d[:, 1], 
+                   alpha=0.6,    # 设置透明度
+                   edgecolors='w', # 点边缘颜色
+                   s=40)         # 点大小
+    axs[0].xaxis.set_ticklabels([])
+    axs[0].yaxis.set_ticklabels([])
 
-    plt.title('(a)SASRec模型中物品Embedding降维后的散点图', fontsize=28)
-    plt.xlabel('t-SNE Dimension 1', fontsize=20)
-    plt.ylabel('t-SNE Dimension 2', fontsize=20)
-    plt.grid(alpha=0.3)      # 添加半透明网格
+    axs[0].set_title('(a)Distribution of items in SASRec', fontweight='bold', fontsize=28, y=-0.1)
+    axs[0].set_xlabel('t-SNE Dimension 1', fontsize=20)
+    axs[0].set_ylabel('t-SNE Dimension 2', fontsize=20)
+    axs[0].grid(alpha=0.3)      # 添加半透明网格
     # plt.show()
-    plt.savefig('1_items_embedding.png', dpi=300)
+    # axs[0].savefig('1_items_embedding.svg', format='svg', dpi=300)
     xxx = 0
 
-def draw_points_2(X_tensor):
+def draw_points_2(X_tensor, fig, axs):
     # X = np.random.randn(1000, 64)
-    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
     plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
 
     X = X_tensor.detach().cpu().numpy()
@@ -199,18 +202,20 @@ def draw_points_2(X_tensor):
     X_2d = tsne.fit_transform(X_scaled)
 
     # 绘制散点图
-    plt.figure(figsize=(15, 15))
-    plt.scatter(X_2d[:, 0], X_2d[:, 1], 
+    # plt.figure(figsize=(15, 15))
+    axs[1].scatter(X_2d[:, 0], X_2d[:, 1], 
                 alpha=0.6,    # 设置透明度
                 edgecolors='w', # 点边缘颜色
                 s=40)         # 点大小
-
-    plt.title('(b)MIPSRec模型中混合兴趣Embedding降维后的散点图', fontsize=28)
-    plt.xlabel('t-SNE Dimension 1', fontsize=20)
-    plt.ylabel('t-SNE Dimension 2', fontsize=20)
-    plt.grid(alpha=0.3)      # 添加半透明网格
+    axs[1].xaxis.set_ticklabels([])
+    axs[1].yaxis.set_ticklabels([])
+    # plt.title('(b)MIPSRec模型中混合兴趣Embedding降维后的散点图', fontsize=28)
+    axs[1].set_title('(b)Distribution of Mixed-interests in MIFARec', fontweight='bold', fontsize=28, y=-0.1)
+    axs[1].set_xlabel('t-SNE Dimension 1', fontsize=20)
+    axs[1].set_ylabel('t-SNE Dimension 2', fontsize=20)
+    axs[1].grid(alpha=0.3)      # 添加半透明网格
     # plt.show()
-    plt.savefig('2_interests_embedding.png', dpi=300)
+    # plt.savefig('2_interests_embedding.svg', format='svg', dpi=300)
     xxx = 0
 
 # 输入：256*20*256的数

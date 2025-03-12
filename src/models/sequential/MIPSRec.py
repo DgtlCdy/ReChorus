@@ -43,6 +43,9 @@ class MIPSRecBase(object):
         self.apply(self.init_weights)
         self.R = 0
         self.gram_matrix = 0  # 把item相似矩阵放在base里面
+        self.fig = 0
+        self.axs = 0
+        self.need_draw = True
 
 
     def _base_define_params(self):
@@ -67,7 +70,19 @@ class MIPSRecBase(object):
         # dengchao: 展示数据
         item_embeddings = self.i_embeddings.weight
         interest_embeddings = self.gram_matrix @ self.i_embeddings.weight
-        utils.draw_points_2(interest_embeddings)
+
+        if self.need_draw == True:
+            utils.draw_points_2(interest_embeddings, self.fig, self.axs)
+
+            # axs[0].grid(True, linestyle='--', alpha=0.6)
+            # axs[1].grid(True, linestyle='--', alpha=0.6)
+            # axs[0].legend()
+            # axs[1].legend()
+            # 显示图表
+            # plt.tight_layout()  # 自动调整子图间距
+            # plt.savefig('4_mixed_interests.svg', format='svg', dpi=300)
+    
+            self.need_draw = False
 
         interests_sim = self.gram_matrix[history]
         # 4种构建基于相似的兴趣的方式：
@@ -149,6 +164,8 @@ class MIPSRec(SequentialModel, MIPSRecBase):
     
     def __init__(self, args, corpus):
         SequentialModel.__init__(self, args, corpus)
+        self.fig = 0
+        self.axs = 0
         self._base_init(args, corpus)
 
     def get_gram_matrix(self, dataset):
@@ -192,6 +209,9 @@ class MIPSRec(SequentialModel, MIPSRecBase):
         gram_matrix_topk = torch.nn.functional.normalize(gram_matrix_topk, p=2)
         self.gram_matrix = gram_matrix_topk
 
+    def input_fig_data(self, fig, axs):
+        self.fig = fig
+        self.axs = axs
 
     def forward(self, feed_dict):
         out_dict = MIPSRecBase.forward(self, feed_dict)

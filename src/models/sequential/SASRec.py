@@ -40,6 +40,9 @@ class SASRecBase(object):
         self.len_range = torch.from_numpy(np.arange(self.max_his)).to(self.device)
         self._base_define_params()
         self.apply(self.init_weights)
+        self.fig = 0
+        self.axs = 0
+        self.need_draw = True
 
     def _base_define_params(self):
         self.i_embeddings = nn.Embedding(self.item_num, self.emb_size)
@@ -62,7 +65,10 @@ class SASRecBase(object):
         his_vectors = self.i_embeddings(history)
 
         item_embeddings = self.i_embeddings.weight
-        utils.draw_points_1(item_embeddings)
+
+        if self.need_draw == True:
+            utils.draw_points_1(item_embeddings, self.fig, self.axs)
+            self.need_draw = False
 
 
         # Position embedding
@@ -110,7 +116,13 @@ class SASRec(SequentialModel, SASRecBase):
     
     def __init__(self, args, corpus):
         SequentialModel.__init__(self, args, corpus)
+        self.fig = 0
+        self.axs = 0
         self._base_init(args, corpus)
+
+    def input_fig_data(self, fig, axs):
+        self.fig = fig
+        self.axs = axs
 
     def forward(self, feed_dict):
         out_dict = SASRecBase.forward(self, feed_dict)

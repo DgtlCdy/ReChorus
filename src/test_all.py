@@ -18,6 +18,12 @@ from models.reranker import *
 from utils import utils
 
 
+import matplotlib.pyplot as plt
+import numpy as np
+plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
+plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(28, 15))
+
 def parse_global_args(parser):
     parser.add_argument('--gpu', type=str, default='0',
                         help='Set CUDA_VISIBLE_DEVICES, default for CPU only')
@@ -81,6 +87,12 @@ def main():
     if 'MIPSRec' in init_args.model_name:
         model.get_gram_matrix(data_dict['train'])
 
+    if 'SASRec' in init_args.model_name:
+        model.input_fig_data(fig, axs)
+    if 'MIPSRec' in init_args.model_name:
+        model.input_fig_data(fig, axs)
+
+
     # Run model
     runner = runner_name(args, model)
     logging.info('Test Before Training: ' + runner.print_res(data_dict['test']))
@@ -104,6 +116,10 @@ def main():
     model.actions_after_train()
     logging.info(os.linesep + '-' * 45 + ' END: ' + utils.get_time() + ' ' + '-' * 45)
 
+    if 'MIPSRec' in init_args.model_name:
+        # plt.savefig('4_mixed_interests.svg', format='svg', dpi=300)
+        plt.tight_layout()  # 自动调整子图间距
+        plt.savefig('4_mixed_interests.svg', format='svg', dpi=300)
 
 def save_rec_results(dataset, runner, topk):
     model_name = '{0}{1}'.format(init_args.model_name,init_args.model_mode)
@@ -178,18 +194,19 @@ if __name__ == '__main__':
     # for model_name_default in ['FPMC']:
     # for model_name_default in ['TiDIPSRec_0d0',  'TiDIPSRec_0d1', 'TiDIPSRec', 'TiDIPSRec_0d001']:
     # for model_name_default in ['TiDIPSRec_1t',  'TiDIPSRec_2f', 'TiDIPSRec_3i', 'DIPSRec_2i', 'DIPSRec_3p', 'DIPSRec_4mi', 'DIPSRec_5mp', 'DIPSRec_6ip']:
+    for model_name_default in ['SASRec', 'MIPSRec']:
     # for model_name_default in ['SASRec', 'MIPSRec', 'RtMIPSRec']:
     # for model_name_default in ['SASRec']:
     # for model_name_default in ['MIPSRec']:
-    for model_name_default in ['RtMIPSRec']:
+    # for model_name_default in ['RtMIPSRec']:
     # for model_name_default in ['MIPSRec_hw05', 'MIPSRec_hw06', 'MIPSRec_hw07', 'MIPSRec_hw08', 'MIPSRec_hw09', 'MIPSRec_hw10']:
-        # for dataset_default in ['Video_Games']:
+        for dataset_default in ['Video_Games']:
         # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'FourSquare_CA']:
         # for dataset_default in ['ML_1M_TOPK']:
         # for dataset_default in ['FourSquare_TKY']:
         # for dataset_default in ['Beauty', 'Video_Games', 'FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
         # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'Gowalla']:
-        for dataset_default in ['Video_Games', 'FourSquare_NYC', 'Gowalla']:
+        # for dataset_default in ['Video_Games', 'FourSquare_NYC', 'Gowalla']:
             init_parser = argparse.ArgumentParser(description='Model')
             init_parser.add_argument('--model_name', type=str, default=model_name_default, help='Choose a model to run.')
             init_parser.add_argument('--model_mode', type=str, default='', 
