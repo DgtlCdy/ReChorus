@@ -62,7 +62,7 @@ class SASRecBase(object):
         his_vectors = self.i_embeddings(history)
 
         item_embeddings = self.i_embeddings.weight
-        utils.draw_points(item_embeddings)
+        utils.draw_points_1(item_embeddings)
 
 
         # Position embedding

@@ -67,7 +67,7 @@ class MIPSRecBase(object):
         # dengchao: 展示数据
         item_embeddings = self.i_embeddings.weight
         interest_embeddings = self.gram_matrix @ self.i_embeddings.weight
-        utils.draw_points(interest_embeddings)
+        utils.draw_points_2(interest_embeddings)
 
         interests_sim = self.gram_matrix[history]
         # 4种构建基于相似的兴趣的方式：

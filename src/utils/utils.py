@@ -141,8 +141,10 @@ import numpy as np
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
-def draw_points(X_tensor):
+def draw_points_1(X_tensor):
     # X = np.random.randn(1000, 64)
+    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
 
     X = X_tensor.detach().cpu().numpy()
 
@@ -161,22 +163,62 @@ def draw_points(X_tensor):
     X_2d = tsne.fit_transform(X_scaled)
 
     # 绘制散点图
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(15, 15))
     plt.scatter(X_2d[:, 0], X_2d[:, 1], 
                 alpha=0.6,    # 设置透明度
                 edgecolors='w', # 点边缘颜色
                 s=40)         # 点大小
 
-    plt.title('2D Visualization using t-SNE', fontsize=14)
-    plt.xlabel('t-SNE Dimension 1', fontsize=12)
-    plt.ylabel('t-SNE Dimension 2', fontsize=12)
+    plt.title('(a)SASRec模型中物品Embedding降维后的散点图', fontsize=28)
+    plt.xlabel('t-SNE Dimension 1', fontsize=20)
+    plt.ylabel('t-SNE Dimension 2', fontsize=20)
     plt.grid(alpha=0.3)      # 添加半透明网格
-    plt.show()
+    # plt.show()
+    plt.savefig('1_items_embedding.png', dpi=300)
+    xxx = 0
+
+def draw_points_2(X_tensor):
+    # X = np.random.randn(1000, 64)
+    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+
+    X = X_tensor.detach().cpu().numpy()
+
+    # 数据标准化（推荐预处理步骤）
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # 使用t-SNE进行降维
+    tsne = TSNE(
+        n_components=2,      # 降维到2维
+        random_state=42,     # 随机种子保证可重复性
+        perplexity=30,       # 建议值在5-50之间，根据数据量调整
+        learning_rate=200,  # 学习率通常设置在10-1000之间
+        n_iter=1000         # 迭代次数
+    )
+    X_2d = tsne.fit_transform(X_scaled)
+
+    # 绘制散点图
+    plt.figure(figsize=(15, 15))
+    plt.scatter(X_2d[:, 0], X_2d[:, 1], 
+                alpha=0.6,    # 设置透明度
+                edgecolors='w', # 点边缘颜色
+                s=40)         # 点大小
+
+    plt.title('(b)MIPSRec模型中混合兴趣Embedding降维后的散点图', fontsize=28)
+    plt.xlabel('t-SNE Dimension 1', fontsize=20)
+    plt.ylabel('t-SNE Dimension 2', fontsize=20)
+    plt.grid(alpha=0.3)      # 添加半透明网格
+    # plt.show()
+    plt.savefig('2_interests_embedding.png', dpi=300)
     xxx = 0
 
 # 输入：256*20*256的数
 # 输出：每一个数，按256展开成一个频谱
 def draw_frequency(period_torch, frequency_torch, valid_torch, u_id):
+    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    plt.figure(figsize=(10, 5))
 
     frequency = frequency_torch.detach().cpu().numpy()
     valid = valid_torch.detach().cpu().numpy()
@@ -185,9 +227,13 @@ def draw_frequency(period_torch, frequency_torch, valid_torch, u_id):
     count = 0
     for i, session, valid_tag in zip(range(256), frequency, valid):
         if valid_tag[-1] == 1 and u_id == 513:
-            # for j in session:
-            #     plt.plot(x, j, marker='o', linestyle='-', color='#FF6B6B')
-            # plt.show()
+            for j in session:
+                plt.plot(x, j, marker='o', linestyle='-', color='#FF6B6B')
+
+            plt.xlabel('周期的对数(对数底根据最长周期和索引数目自动确定)')
+            plt.ylabel('频段响应权重')
+
+            plt.savefig('3_frequency.png', dpi=300)
             idx = i
             break
 
@@ -196,6 +242,10 @@ def draw_frequency(period_torch, frequency_torch, valid_torch, u_id):
 
 def draw_weight_time(idx_session, numda_torch, current_interval_torch):
 
+    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    plt.figure(figsize=(5, 4))
+
     current_interval = current_interval_torch.detach().cpu().numpy()
     numda = numda_torch.detach().cpu().numpy()
 
@@ -203,11 +253,19 @@ def draw_weight_time(idx_session, numda_torch, current_interval_torch):
     y = numda[idx_session]
     result_2d = np.column_stack((x, y))
     plt.scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
-    plt.show()
+    plt.title('(a)一个会话中的各兴趣权重与其时间间隔的关联')
+    plt.xlabel('各混合兴趣发生时间与当前时间的间隔')
+    plt.ylabel('各混合兴趣的相对权重')
+    plt.savefig('4_weight_time.png', dpi=300)
     return 0
 
 
 def draw_weight_sim(idx_session, numda_torch, sim_data_torch):
+
+    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    plt.figure(figsize=(5, 4))
+
     sim_data = sim_data_torch.detach().cpu().numpy()
     numda = numda_torch.detach().cpu().numpy()
 
@@ -216,11 +274,18 @@ def draw_weight_sim(idx_session, numda_torch, sim_data_torch):
 
     result_2d = np.column_stack((x, y))
     plt.scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
-    plt.show()
+    plt.title('(b)一个会话中的各兴趣权重与真实交互相似度的关联')
+    plt.xlabel('各混合兴趣与阳性样本的实际相似度')
+    plt.ylabel('各混合兴趣的相对权重')
+    plt.savefig('5_weight_sim.png', dpi=300)
     return 0
 
 
 def draw_weight_sim_time(idx_session, current_interval_torch, sim_data_torch):
+
+    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+
     current_interval = current_interval_torch.detach().cpu().numpy()
     sim_data = sim_data_torch.detach().cpu().numpy()
 
