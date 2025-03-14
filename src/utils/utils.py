@@ -221,9 +221,9 @@ def draw_points_2(X_tensor, fig, axs):
 # 输入：256*20*256的数
 # 输出：每一个数，按256展开成一个频谱
 def draw_frequency(period_torch, frequency_torch, valid_torch, u_id):
-    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
-    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
-    plt.figure(figsize=(10, 5))
+    # plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    # plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    # plt.figure(figsize=(10, 5))
 
     frequency = frequency_torch.detach().cpu().numpy()
     valid = valid_torch.detach().cpu().numpy()
@@ -233,23 +233,24 @@ def draw_frequency(period_torch, frequency_torch, valid_torch, u_id):
     for i, session, valid_tag in zip(range(256), frequency, valid):
         if valid_tag[-1] == 1 and u_id == 513:
             for j in session:
-                plt.plot(x, j, marker='o', linestyle='-', color='#FF6B6B')
+                # plt.plot(x, j, marker='o', linestyle='-', color='#FF6B6B')
+                pass
 
-            plt.xlabel('周期的对数(对数底根据最长周期和索引数目自动确定)')
-            plt.ylabel('频段响应权重')
+            # plt.xlabel('周期的对数(对数底根据最长周期和索引数目自动确定)')
+            # plt.ylabel('频段响应权重')
 
-            plt.savefig('3_frequency.png', dpi=300)
+            # plt.savefig('5_frequency.svg', format=svg, dpi=300)
             idx = i
             break
 
     return idx
 
 
-def draw_weight_time(idx_session, numda_torch, current_interval_torch):
+def draw_weight_time(axs, idx_session, numda_torch, current_interval_torch):
 
-    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
-    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
-    plt.figure(figsize=(5, 4))
+    # plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    # plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    # plt.figure(figsize=(5, 4))
 
     current_interval = current_interval_torch.detach().cpu().numpy()
     numda = numda_torch.detach().cpu().numpy()
@@ -257,19 +258,19 @@ def draw_weight_time(idx_session, numda_torch, current_interval_torch):
     x = current_interval[idx_session]
     y = numda[idx_session]
     result_2d = np.column_stack((x, y))
-    plt.scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
-    plt.title('(a)一个会话中的各兴趣权重与其时间间隔的关联')
-    plt.xlabel('各混合兴趣发生时间与当前时间的间隔')
-    plt.ylabel('各混合兴趣的相对权重')
-    plt.savefig('4_weight_time.png', dpi=300)
+    axs[0].scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
+    axs[0].set_title('(a)Phenomenon: Time effect to mixed-interests', fontweight='bold', fontsize=20, y=-0.2)
+    axs[0].set_xlabel('Time interval to specific time(sec.)', fontsize=14)
+    axs[0].set_ylabel('Relative weight of mixed-interests', fontsize=14)
+    # axs[0].savefig('4_weight_time.png', dpi=300)
     return 0
 
 
-def draw_weight_sim(idx_session, numda_torch, sim_data_torch):
+def draw_weight_sim(axs, idx_session, numda_torch, sim_data_torch):
 
-    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
-    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
-    plt.figure(figsize=(5, 4))
+    # plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    # plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    # plt.figure(figsize=(5, 4))
 
     sim_data = sim_data_torch.detach().cpu().numpy()
     numda = numda_torch.detach().cpu().numpy()
@@ -278,27 +279,27 @@ def draw_weight_sim(idx_session, numda_torch, sim_data_torch):
     y = numda[idx_session]
 
     result_2d = np.column_stack((x, y))
-    plt.scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
-    plt.title('(b)一个会话中的各兴趣权重与真实交互相似度的关联')
-    plt.xlabel('各混合兴趣与阳性样本的实际相似度')
-    plt.ylabel('各混合兴趣的相对权重')
-    plt.savefig('5_weight_sim.png', dpi=300)
+    axs[1].scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
+    axs[1].set_title('(b)Validation: Fourier Analysis makes better recommendation', fontweight='bold', fontsize=20, y=-0.2)
+    axs[1].set_xlabel('Actual similarity between mixed-interests and positive item', fontsize=14)
+    axs[1].set_ylabel('Relative weight of mixed-interests', fontsize=14
+    # axs[1].savefig('5_weight_sim.png', dpi=300)
     return 0
 
 
 def draw_weight_sim_time(idx_session, current_interval_torch, sim_data_torch):
 
-    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
-    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    # plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    # plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
 
-    current_interval = current_interval_torch.detach().cpu().numpy()
-    sim_data = sim_data_torch.detach().cpu().numpy()
+    # current_interval = current_interval_torch.detach().cpu().numpy()
+    # sim_data = sim_data_torch.detach().cpu().numpy()
 
 
-    x = current_interval
-    y = sim_data
+    # x = current_interval
+    # y = sim_data
 
-    result_2d = np.column_stack((x, y))
-    plt.scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
-    plt.show()
+    # result_2d = np.column_stack((x, y))
+    # plt.scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
+    # plt.show()
     return 0
