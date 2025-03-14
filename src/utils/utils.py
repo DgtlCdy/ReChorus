@@ -172,9 +172,9 @@ def draw_points_1(X_tensor, fig, axs):
     axs[0].xaxis.set_ticklabels([])
     axs[0].yaxis.set_ticklabels([])
 
-    axs[0].set_title('(a)Distribution of items in SASRec', fontweight='bold', fontsize=28, y=-0.1)
-    axs[0].set_xlabel('t-SNE Dimension 1', fontsize=20)
-    axs[0].set_ylabel('t-SNE Dimension 2', fontsize=20)
+    axs[0].set_title('(a)Distribution of items in SASRec', fontweight='bold', fontsize=34, y=-0.1)
+    axs[0].set_xlabel('t-SNE Dimension 1', fontsize=28)
+    axs[0].set_ylabel('t-SNE Dimension 2', fontsize=28)
     axs[0].grid(alpha=0.3)      # 添加半透明网格
     # plt.show()
     # axs[0].savefig('1_items_embedding.svg', format='svg', dpi=300)
@@ -210,9 +210,9 @@ def draw_points_2(X_tensor, fig, axs):
     axs[1].xaxis.set_ticklabels([])
     axs[1].yaxis.set_ticklabels([])
     # plt.title('(b)MIPSRec模型中混合兴趣Embedding降维后的散点图', fontsize=28)
-    axs[1].set_title('(b)Distribution of Mixed-interests in MIFARec', fontweight='bold', fontsize=28, y=-0.1)
-    axs[1].set_xlabel('t-SNE Dimension 1', fontsize=20)
-    axs[1].set_ylabel('t-SNE Dimension 2', fontsize=20)
+    axs[1].set_title('(b)Distribution of Mixed-interests in MIFARec', fontweight='bold', fontsize=34, y=-0.1)
+    axs[1].set_xlabel('t-SNE Dimension 1', fontsize=28)
+    axs[1].set_ylabel('t-SNE Dimension 2', fontsize=28)
     axs[1].grid(alpha=0.3)      # 添加半透明网格
     # plt.show()
     # plt.savefig('2_interests_embedding.svg', format='svg', dpi=300)
