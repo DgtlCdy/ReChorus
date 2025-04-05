@@ -11,4 +11,4 @@ search.py
 data
 *.txt
 *.png
-*.svg
+# *.svg
