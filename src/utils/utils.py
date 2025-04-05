@@ -144,78 +144,78 @@ import matplotlib.pyplot as plt
 def draw_points_1(X_tensor, fig, axs):
 
     # X = np.random.randn(1000, 64)
-    plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
-    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    # plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
+    # plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
 
-    X = X_tensor.detach().cpu().numpy()
+    # X = X_tensor.detach().cpu().numpy()
 
-    # 数据标准化（推荐预处理步骤）
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    # # 数据标准化（推荐预处理步骤）
+    # scaler = StandardScaler()
+    # X_scaled = scaler.fit_transform(X)
 
-    # 使用t-SNE进行降维
-    tsne = TSNE(
-        n_components=2,      # 降维到2维
-        random_state=42,     # 随机种子保证可重复性
-        perplexity=30,       # 建议值在5-50之间，根据数据量调整
-        learning_rate=200,  # 学习率通常设置在10-1000之间
-        n_iter=1000         # 迭代次数
-    )
-    X_2d = tsne.fit_transform(X_scaled)
+    # # 使用t-SNE进行降维
+    # tsne = TSNE(
+    #     n_components=2,      # 降维到2维
+    #     random_state=42,     # 随机种子保证可重复性
+    #     perplexity=30,       # 建议值在5-50之间，根据数据量调整
+    #     learning_rate=200,  # 学习率通常设置在10-1000之间
+    #     n_iter=1000         # 迭代次数
+    # )
+    # X_2d = tsne.fit_transform(X_scaled)
 
-    # 绘制散点图
-    # plt.figure(figsize=(15, 15))
-    axs[0].scatter(X_2d[:, 0], X_2d[:, 1], 
-                   alpha=0.6,    # 设置透明度
-                   edgecolors='w', # 点边缘颜色
-                   s=40)         # 点大小
-    axs[0].xaxis.set_ticklabels([])
-    axs[0].yaxis.set_ticklabels([])
+    # # 绘制散点图
+    # # plt.figure(figsize=(15, 15))
+    # axs[0].scatter(X_2d[:, 0], X_2d[:, 1], 
+    #                alpha=0.6,    # 设置透明度
+    #                edgecolors='w', # 点边缘颜色
+    #                s=40)         # 点大小
+    # axs[0].xaxis.set_ticklabels([])
+    # axs[0].yaxis.set_ticklabels([])
 
-    axs[0].set_title('(a)Distribution of items in SASRec', fontweight='bold', fontsize=28, y=-0.1)
-    axs[0].set_xlabel('t-SNE Dimension 1', fontsize=20)
-    axs[0].set_ylabel('t-SNE Dimension 2', fontsize=20)
-    axs[0].grid(alpha=0.3)      # 添加半透明网格
+    # axs[0].set_title('(a)Distribution of items in SASRec', fontweight='bold', fontsize=24, y=-0.1)
+    # axs[0].set_xlabel('t-SNE Dimension 1', fontsize=20)
+    # axs[0].set_ylabel('t-SNE Dimension 2', fontsize=20)
+    # axs[0].grid(alpha=0.3)      # 添加半透明网格
     # plt.show()
     # axs[0].savefig('1_items_embedding.svg', format='svg', dpi=300)
     xxx = 0
 
 def draw_points_2(X_tensor, fig, axs):
     # X = np.random.randn(1000, 64)
-    plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
-    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    # plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
+    # plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
 
-    X = X_tensor.detach().cpu().numpy()
+    # X = X_tensor.detach().cpu().numpy()
 
-    # 数据标准化（推荐预处理步骤）
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    # # 数据标准化（推荐预处理步骤）
+    # scaler = StandardScaler()
+    # X_scaled = scaler.fit_transform(X)
 
-    # 使用t-SNE进行降维
-    tsne = TSNE(
-        n_components=2,      # 降维到2维
-        random_state=42,     # 随机种子保证可重复性
-        perplexity=30,       # 建议值在5-50之间，根据数据量调整
-        learning_rate=200,  # 学习率通常设置在10-1000之间
-        n_iter=1000         # 迭代次数
-    )
-    X_2d = tsne.fit_transform(X_scaled)
+    # # 使用t-SNE进行降维
+    # tsne = TSNE(
+    #     n_components=2,      # 降维到2维
+    #     random_state=42,     # 随机种子保证可重复性
+    #     perplexity=30,       # 建议值在5-50之间，根据数据量调整
+    #     learning_rate=200,  # 学习率通常设置在10-1000之间
+    #     n_iter=1000         # 迭代次数
+    # )
+    # X_2d = tsne.fit_transform(X_scaled)
 
-    # 绘制散点图
-    # plt.figure(figsize=(15, 15))
-    axs[1].scatter(X_2d[:, 0], X_2d[:, 1], 
-                alpha=0.6,    # 设置透明度
-                edgecolors='w', # 点边缘颜色
-                s=40)         # 点大小
-    axs[1].xaxis.set_ticklabels([])
-    axs[1].yaxis.set_ticklabels([])
-    # plt.title('(b)MIPSRec模型中混合兴趣Embedding降维后的散点图', fontsize=28)
-    axs[1].set_title('(b)Distribution of Mixed-interests in MIFARec', fontweight='bold', fontsize=28, y=-0.1)
-    axs[1].set_xlabel('t-SNE Dimension 1', fontsize=20)
-    axs[1].set_ylabel('t-SNE Dimension 2', fontsize=20)
-    axs[1].grid(alpha=0.3)      # 添加半透明网格
-    # plt.show()
-    # plt.savefig('2_interests_embedding.svg', format='svg', dpi=300)
+    # # 绘制散点图
+    # # plt.figure(figsize=(15, 15))
+    # axs[1].scatter(X_2d[:, 0], X_2d[:, 1], 
+    #             alpha=0.6,    # 设置透明度
+    #             edgecolors='w', # 点边缘颜色
+    #             s=40)         # 点大小
+    # axs[1].xaxis.set_ticklabels([])
+    # axs[1].yaxis.set_ticklabels([])
+    # # plt.title('(b)MIPSRec模型中混合兴趣Embedding降维后的散点图', fontsize=28)
+    # axs[1].set_title('(b)Distribution of Mixed-interests in MIFARec', fontweight='bold', fontsize=24, y=-0.1)
+    # axs[1].set_xlabel('t-SNE Dimension 1', fontsize=20)
+    # axs[1].set_ylabel('t-SNE Dimension 2', fontsize=20)
+    # axs[1].grid(alpha=0.3)      # 添加半透明网格
+    # # plt.show()
+    # # plt.savefig('2_interests_embedding.svg', format='svg', dpi=300)
     xxx = 0
 
 # 输入：256*20*256的数
@@ -259,9 +259,12 @@ def draw_weight_time(axs, idx_session, numda_torch, current_interval_torch):
     y = numda[idx_session]
     result_2d = np.column_stack((x, y))
     axs[0].scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
-    axs[0].set_title('(a)Phenomenon: Time effect to mixed-interests', fontweight='bold', fontsize=20, y=-0.2)
-    axs[0].set_xlabel('Time interval to specific time(sec.)', fontsize=14)
-    axs[0].set_ylabel('Relative weight of mixed-interests', fontsize=14)
+    # axs[0].set_title('(a)Phenomenon: Time effect to mixed-interests', fontweight='bold', fontsize=20, y=-0.2)
+    # axs[0].set_xlabel('Time interval to specific time(sec.)', fontsize=14)
+    # axs[0].set_ylabel('Relative weight of mixed-interests', fontsize=14)
+    axs[0].set_title('(a)现象: 混合兴趣总体呈现随时间流逝的衰退趋势', fontweight='bold', fontsize=16, y=-0.2)
+    axs[0].set_xlabel(r'混合兴趣的特定时间间隔$t$(天)', fontsize=14)
+    axs[0].set_ylabel(r'混合兴趣的相对权重$\lambda$', fontsize=14)
     # axs[0].savefig('4_weight_time.png', dpi=300)
     return 0
 
@@ -280,9 +283,12 @@ def draw_weight_sim(axs, idx_session, numda_torch, sim_data_torch):
 
     result_2d = np.column_stack((x, y))
     axs[1].scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
-    axs[1].set_title('(b)Validation: Fourier Analysis makes better recommendation', fontweight='bold', fontsize=20, y=-0.2)
-    axs[1].set_xlabel('Actual similarity between mixed-interests and positive item', fontsize=14)
-    axs[1].set_ylabel('Relative weight of mixed-interests', fontsize=14
+    # axs[1].set_title('(b)Validation: Fourier Analysis makes better recommendation', fontweight='bold', fontsize=20, y=-0.2)
+    # axs[1].set_xlabel('Actual similarity between mixed-interests and positive item', fontsize=14)
+    # axs[1].set_ylabel('Relative weight of mixed-interests', fontsize=14)
+    axs[1].set_title('(b)验证: 傅里叶分析优化了最终推荐效果', fontweight='bold', fontsize=16, y=-0.2)
+    axs[1].set_xlabel('混合兴趣与阳性标签Embedding的实际相似度', fontsize=14)
+    axs[1].set_ylabel(r'混合兴趣的相对权重$\lambda$', fontsize=14)
     # axs[1].savefig('5_weight_sim.png', dpi=300)
     return 0
 
