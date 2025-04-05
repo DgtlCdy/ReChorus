@@ -164,8 +164,8 @@ class RtMIPSRecBase(object):
         # 第一步：画频谱
         # 需要按时间线性比例拉长
         import matplotlib.pyplot as plt
-        plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
-        plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+        # plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
+        # plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
         fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
         idx_session = utils.draw_frequency(period, weight_t, valid_his, u_ids[0])
         if self.need_draw == True and idx_session != -1 and u_ids[0] == 513:

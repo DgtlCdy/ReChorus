@@ -21,8 +21,9 @@ from utils import utils
 import matplotlib.pyplot as plt
 import numpy as np
 # plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
-# plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
-# fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(28, 15))
+plt.rcParams["font.sans-serif"]=["SimHei", "Times New Roman"] #设置字体
+plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(22, 12))
 
 def parse_global_args(parser):
     parser.add_argument('--gpu', type=str, default='0',
@@ -87,10 +88,10 @@ def main():
     if 'MIPSRec' in init_args.model_name:
         model.get_gram_matrix(data_dict['train'])
 
-    # if 'SASRec' in init_args.model_name:
-    #     model.input_fig_data(fig, axs)
-    # if 'MIPSRec' in init_args.model_name:
-    #     model.input_fig_data(fig, axs)
+    if 'SASRec' in init_args.model_name:
+        model.input_fig_data(fig, axs)
+    if 'MIPSRec' in init_args.model_name:
+        model.input_fig_data(fig, axs)
     # if 'RtMIPSRec' in init_args.model_name:
     #     model.input_fig_data(fig, axs)
 
@@ -118,10 +119,10 @@ def main():
     model.actions_after_train()
     logging.info(os.linesep + '-' * 45 + ' END: ' + utils.get_time() + ' ' + '-' * 45)
 
-    # if 'MIPSRec' in init_args.model_name:
-    #     # plt.savefig('4_mixed_interests.svg', format='svg', dpi=300)
-    #     plt.tight_layout()  # 自动调整子图间距
-    #     plt.savefig('4_mixed_interests.svg', format='svg', dpi=300)
+    if 'MIPSRec' in init_args.model_name:
+        # plt.savefig('4_mixed_interests.svg', format='svg', dpi=300)
+        plt.tight_layout()  # 自动调整子图间距
+        plt.savefig('4_mixed_interests.svg', format='svg', dpi=300)
 
 def save_rec_results(dataset, runner, topk):
     model_name = '{0}{1}'.format(init_args.model_name,init_args.model_mode)
@@ -199,8 +200,8 @@ if __name__ == '__main__':
     # for model_name_default in ['SASRec', 'MIPSRec']:
     # for model_name_default in ['SASRec', 'MIPSRec', 'RtMIPSRec']:
     # for model_name_default in ['SASRec']:
-    # for model_name_default in ['MIPSRec']:
-    for model_name_default in ['RtMIPSRec']:
+    for model_name_default in ['SASRec', 'MIPSRec']:
+    # for model_name_default in ['RtMIPSRec']:
     # for model_name_default in ['MIPSRec_hw05', 'MIPSRec_hw06', 'MIPSRec_hw07', 'MIPSRec_hw08', 'MIPSRec_hw09', 'MIPSRec_hw10']:
         for dataset_default in ['Video_Games']:
         # for dataset_default in ['FourSquare_NYC', 'FourSquare_TKY', 'FourSquare_CA']:
