@@ -1,3 +1,5 @@
+# -*- coding: UTF-8 -*-
+
 import math
 import numpy as np
 import torch
@@ -131,11 +133,9 @@ def create_named_schedule_sampler(name, num_timesteps):
     else:
         raise NotImplementedError(f"Unknown sampler: {name}")
 
-
 class SiLU(nn.Module):
     def forward(self, x):
         return x * torch.sigmoid(x)
-
 
 class LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-12):
@@ -150,7 +150,6 @@ class LayerNorm(nn.Module):
         x = (x - u) / torch.sqrt(s + self.variance_epsilon)
         return self.weight * x + self.bias
 
-
 class SublayerConnection(nn.Module):
     def __init__(self, hidden_size, dropout):
         super(SublayerConnection, self).__init__()
@@ -159,7 +158,6 @@ class SublayerConnection(nn.Module):
 
     def forward(self, x, sublayer):
         return x + self.dropout(sublayer(self.norm(x)))
-
 
 class PositionwiseFeedForward(nn.Module):
     def __init__(self, hidden_size, dropout=0.1):
@@ -177,7 +175,6 @@ class PositionwiseFeedForward(nn.Module):
         x = self.w_1(hidden)
         x = 0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
         return self.w_2(self.dropout(x))
-
 
 class MultiHeadedAttention(nn.Module):
     def __init__(self, heads, hidden_size, dropout):
@@ -209,7 +206,6 @@ class MultiHeadedAttention(nn.Module):
         hidden = hidden.transpose(1, 2).contiguous().view(batch_size, -1, self.num_heads * self.size_head)
         return self.w_layer(hidden)
 
-
 class TransformerBlock(nn.Module):
     def __init__(self, hidden_size, attn_heads, dropout):
         super(TransformerBlock, self).__init__()
@@ -224,7 +220,6 @@ class TransformerBlock(nn.Module):
         hidden = self.output_sublayer(hidden, self.feed_forward)
         return self.dropout(hidden)
 
-
 class Transformer_rep(nn.Module):
     def __init__(self, hidden_size, num_blocks, dropout, heads=4):
         super(Transformer_rep, self).__init__()
@@ -238,19 +233,25 @@ class Transformer_rep(nn.Module):
             hidden = block(hidden, mask)
         return hidden
 
-
 class Diffu_xstart(nn.Module):
     def __init__(self, hidden_size, num_blocks, dropout, heads, lambda_uncertainty):
         super(Diffu_xstart, self).__init__()
         self.hidden_size = hidden_size
         self.lambda_uncertainty = lambda_uncertainty
-        self.att_transformer = Transformer_rep(hidden_size, num_blocks, dropout, heads)
-        self.norm_diffu_rep = LayerNorm(hidden_size)
+        self.linear_item = nn.Linear(hidden_size, hidden_size, bias=True)
+        self.linear_xt = nn.Linear(hidden_size, hidden_size, bias=True)
+        self.linear_t = nn.Linear(hidden_size, hidden_size, bias=True)
+
+        self.time_embed = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size * 4, bias=True),
+            SiLU(),
+            nn.Linear(hidden_size * 4, hidden_size, bias=True)
+        )
+
+        self.fuse_linear = nn.Linear(hidden_size * 3, hidden_size, bias=True)  # 融合物品、噪声和时间嵌入
+        self.att = Transformer_rep(hidden_size, num_blocks, dropout, heads)
         self.dropout = nn.Dropout(dropout)
-        self.time_embed_dim = hidden_size * 4
-        self.linear_t1 = nn.Linear(hidden_size, self.time_embed_dim)
-        self.linear_t2 = nn.Linear(self.time_embed_dim, hidden_size)
-        self.silu = SiLU()
+        self.norm_diffu_rep = LayerNorm(hidden_size)
 
     def timestep_embedding(self, timesteps, dim, max_period=10000):
         half = dim // 2
@@ -262,27 +263,30 @@ class Diffu_xstart(nn.Module):
         return emb
 
     def forward(self, seq_emb, x_t, t, mask_seq):
+        # 分别处理物品嵌入、噪声和时间步嵌入
+        item_emb = self.linear_item(seq_emb)
+        xt_emb = self.linear_xt(x_t.unsqueeze(1).expand_as(seq_emb))
         t_emb = self.timestep_embedding(t, self.hidden_size)
-        t_emb = self.silu(self.linear_t1(t_emb))
-        t_emb = self.linear_t2(t_emb)
+        t_emb = self.time_embed(t_emb.unsqueeze(1).expand_as(seq_emb))
+
+        # 融合表示
+        fusion = torch.cat([item_emb, xt_emb, t_emb], dim=-1)
+        fusion = self.fuse_linear(fusion)
 
         lambda_noise = torch.normal(mean=torch.full_like(seq_emb, self.lambda_uncertainty),
-                                    std=torch.full_like(seq_emb, self.lambda_uncertainty)).to(seq_emb.device)
-        x_t_expand = x_t.unsqueeze(1).expand_as(seq_emb)
-        fusion = seq_emb + lambda_noise * x_t_expand
+                                   std=torch.full_like(seq_emb, self.lambda_uncertainty)).to(seq_emb.device)
+        fusion = fusion + lambda_noise * xt_emb  # 应用噪声
 
-        seq_rep = self.att_transformer(fusion, mask_seq)
+        seq_rep = self.att(fusion, mask_seq)
         seq_rep = self.norm_diffu_rep(self.dropout(seq_rep))
         lengths = mask_seq.sum(dim=1).long()
         batch_idx = torch.arange(seq_emb.size(0), device=seq_emb.device)
         out = seq_rep[batch_idx, lengths - 1, :]
-        return out
+        return out, seq_rep  # 返回最终输出和完整序列表示
 
-
-class DiffusionCore(nn.Module):
-    def __init__(self, hidden_size, num_blocks, dropout, heads,
-                 diffusion_steps, noise_schedule, lambda_uncertainty, rescale_timesteps):
-        super(DiffusionCore, self).__init__()
+class DiffuRec(nn.Module):
+    def __init__(self, hidden_size, num_blocks, dropout, heads, diffusion_steps, noise_schedule, lambda_uncertainty, rescale_timesteps):
+        super(DiffuRec, self).__init__()
         self.hidden_size = hidden_size
         self.num_timesteps = diffusion_steps
         self.noise_schedule = noise_schedule
@@ -316,20 +320,20 @@ class DiffusionCore(nn.Module):
         sqrt_one_minus_alpha_cumprod_t = _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
         return sqrt_alpha_cumprod_t * x_start + sqrt_one_minus_alpha_cumprod_t * noise
 
-    def q_posterior_mean(self, x_start, x_t, t):
+    def q_posterior_mean_variance(self, x_start, x_t, t):
         coef1 = _extract_into_tensor(self.posterior_mean_coef1, t, x_t.shape)
         coef2 = _extract_into_tensor(self.posterior_mean_coef2, t, x_t.shape)
         return coef1 * x_start + coef2 * x_t
 
     def p_mean_variance(self, seq_emb, x_t, t, mask_seq):
-        x_0 = self.xstart_model(seq_emb, x_t, self._scale_timesteps(t), mask_seq)
-        model_mean = self.q_posterior_mean(x_0, x_t, t)
+        x_0, seq_rep = self.xstart_model(seq_emb, x_t, self._scale_timesteps(t), mask_seq)
+        model_mean = self.q_posterior_mean_variance(x_0, x_t, t)
         model_log_variance = np.log(np.append(self.posterior_variance[1], self.betas[1:]))
         model_log_variance = _extract_into_tensor(model_log_variance, t, x_t.shape)
-        return model_mean, model_log_variance, x_0
+        return model_mean, model_log_variance, x_0, seq_rep
 
     def p_sample(self, seq_emb, x_t, t, mask_seq):
-        model_mean, model_log_variance, x_0 = self.p_mean_variance(seq_emb, x_t, t, mask_seq)
+        model_mean, model_log_variance, x_0, _ = self.p_mean_variance(seq_emb, x_t, t, mask_seq)
         noise = torch.randn_like(x_t)
         nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x_t.shape) - 1)))
         x_prev = model_mean + nonzero_mask * torch.exp(0.5 * model_log_variance) * noise
@@ -341,8 +345,8 @@ class DiffusionCore(nn.Module):
         t, weights = self.schedule_sampler.sample(batch_size, device)
         noise = torch.randn_like(x_start)
         x_t = self.q_sample(x_start, t, noise)
-        x_0 = self.xstart_model(seq_emb, x_t, self._scale_timesteps(t), mask_seq)
-        return x_0, x_t, t, weights
+        x_0, seq_rep = self.xstart_model(seq_emb, x_t, self._scale_timesteps(t), mask_seq)
+        return x_0, x_t, t, weights, seq_rep
 
     def reverse_diffusion(self, seq_emb, x_T, mask_seq):
         device = x_T.device
@@ -353,18 +357,18 @@ class DiffusionCore(nn.Module):
                 x_prev, _ = self.p_sample(seq_emb, x_prev, t, mask_seq)
         return x_prev
 
-
 class DiffuRecBase(object):
     @staticmethod
     def parse_model_args(parser):
-        parser.add_argument('--hidden_size', type=int, default=128, help='Hidden size of model')
-        parser.add_argument('--num_blocks', type=int, default=4, help='Number of Transformer blocks')
-        parser.add_argument('--diffusion_steps', type=int, default=32, help='Number of diffusion steps')
-        parser.add_argument('--lambda_uncertainty', type=float, default=0.001, help='Uncertainty weight')
-        parser.add_argument('--noise_schedule', type=str, default='trunc_lin', help='Noise schedule')
-        parser.add_argument('--emb_dropout', type=float, default=0.3, help='Dropout for item embedding')
-        parser.add_argument('--rescale_timesteps', type=bool, default=True, help='Whether to rescale timesteps')
-        parser.add_argument('--num_heads', type=int, default=4, help='Number of attention heads in Transformer')
+        parser.add_argument('--hidden_size', type=int, default=128, help='模型隐藏层大小')
+        parser.add_argument('--num_blocks', type=int, default=4, help='Transformer 块数量')
+        parser.add_argument('--diffusion_steps', type=int, default=32, help='扩散步骤数')
+        parser.add_argument('--lambda_uncertainty', type=float, default=0.001, help='不确定性权重')
+        parser.add_argument('--noise_schedule', type=str, default='trunc_lin', help='噪声调度类型')
+        parser.add_argument('--emb_dropout', type=float, default=0.3, help='物品嵌入的 dropout')
+        parser.add_argument('--rescale_timesteps', type=bool, default=True, help='是否重新缩放时间步')
+        parser.add_argument('--num_heads', type=int, default=4, help='Transformer 中的注意力头数')
+        parser.add_argument('--loss_lambda', type=float, default=0.001, help='扩散损失的权重')
         return parser
 
     def _base_init(self, args, corpus):
@@ -376,16 +380,17 @@ class DiffuRecBase(object):
         self.emb_dropout = args.emb_dropout
         self.rescale_timesteps = args.rescale_timesteps
         self.num_heads = args.num_heads
-        self.dropout = args.dropout
+        self.dropout = 0.1
         self.item_num = corpus.n_items
         self.device = args.device
+        self.loss_lambda = args.loss_lambda
 
         self.item_embeddings = nn.Embedding(self.item_num + 1, self.hidden_size)
         self.position_embeddings = nn.Embedding(50, self.hidden_size)
-        self.embed_dropout = nn.Dropout(self.emb_dropout)
-        self.layer_norm = nn.LayerNorm(self.hidden_size, eps=1e-12)
+        self.embed_dropout = nn.Dropout(self.emb_dropout, inplace=False)
+        self.layer_norm = LayerNorm(self.hidden_size, eps=1e-12)
 
-        self.diffusion_core = DiffusionCore(
+        self.diffu = DiffuRec(
             hidden_size=self.hidden_size,
             num_blocks=self.num_blocks,
             dropout=self.dropout,
@@ -402,46 +407,66 @@ class DiffuRecBase(object):
         if hasattr(m, 'weight') and m.weight is not None:
             nn.init.xavier_normal_(m.weight)
 
+    def regularization_rep(self, seq_rep, mask_seq):
+        seqs_norm = seq_rep / seq_rep.norm(dim=-1, keepdim=True)
+        seqs_norm = seqs_norm * mask_seq.unsqueeze(-1)
+        cos_mat = torch.matmul(seqs_norm, seqs_norm.transpose(1, 2))
+        cos_sim = torch.mean(torch.mean(torch.sum(torch.sigmoid(-cos_mat), dim=-1), dim=-1), dim=-1)
+        return cos_sim
+
     def forward(self, feed_dict):
-        sequence = feed_dict['history_items']  # [B, L]
-        tags = feed_dict['item_id']            # [B, N] or [B]
+        sequence = feed_dict['history_items']
+        tags = feed_dict['item_id']
         if tags.dim() == 1:
-            tags = tags.unsqueeze(1)           # 确保 tags 是 [B, N]
+            tags = tags.unsqueeze(1)
         num_candidates = tags.size(1)
 
-        mask_seq = (sequence > 0).float()      # [B, L]
+        mask_seq = (sequence > 0).float()
         seq_emb = self.item_embeddings(sequence)
         seq_emb = self.embed_dropout(seq_emb)
         seq_emb = self.layer_norm(seq_emb)
 
-        candidate_emb = self.item_embeddings(tags)  # [B, N, D]
+        candidate_emb = self.item_embeddings(tags)
 
         if self.training:
-            pos_tag_emb = candidate_emb[:, 0, :]  # [B, D]
-            x_0, x_t, t, weights = self.diffusion_core.forward_diffusion(seq_emb, pos_tag_emb, mask_seq)
-            scores = torch.bmm(candidate_emb, x_0.unsqueeze(2)).squeeze(2)  # [B, N]
+            pos_tag_emb = candidate_emb[:, 0, :]
+            x_0, _, weights, t, seq_rep = self.diffu.forward_diffusion(seq_emb, pos_tag_emb, mask_seq)
+            scores = torch.bmm(candidate_emb, x_0.unsqueeze(2)).squeeze(2)
             out_dict = {
                 'prediction': scores,
                 'x_0': x_0,
-                'x_t': x_t,
+                'weights': weights,
                 't': t,
-                'weights': weights
+                'seq_rep': seq_rep
             }
         else:
-            pos_tag_emb = candidate_emb[:, 0, :]  # [B, D]
+            pos_tag_emb = candidate_emb[:, 0, :]
             x_T = torch.randn_like(pos_tag_emb)
-            x_0 = self.diffusion_core.reverse_diffusion(seq_emb, x_T, mask_seq)
-            scores = torch.bmm(candidate_emb, x_0.unsqueeze(2)).squeeze(2)  # [B, N]
+            x_0 = self.diffu.reverse_diffusion(seq_emb, x_T, mask_seq)
+            scores = torch.bmm(candidate_emb, x_0.unsqueeze(2)).squeeze(2)
             out_dict = {'prediction': scores}
 
         return out_dict
 
     def loss(self, out_dict):
         if self.training:
-            predictions = out_dict['prediction']  # [B, N]
-            pos_tags = out_dict['feed_dict']['item_id'][:, 0]  # [B]
-            loss = F.cross_entropy(predictions, torch.zeros(predictions.size(0), dtype=torch.long, device=predictions.device))
-            return loss
+            predictions = out_dict['prediction']
+            pos_tags = out_dict['feed_dict']['item_id'][:, 0]
+            ce_loss = F.cross_entropy(predictions, torch.zeros(predictions.size(0), dtype=torch.long, device=predictions.device))
+
+            x_0 = out_dict['x_0']
+            scores = torch.matmul(x_0, self.item_embeddings.weight.t())
+            scores_pos = scores.gather(1, pos_tags.unsqueeze(1))
+            scores_neg_mean = (torch.sum(scores, dim=-1).unsqueeze(-1) - scores_pos) / (self.item_num - 1)
+            diffu_loss = torch.min(-torch.log(torch.mean(torch.sigmoid((scores_pos - scores_neg_mean).squeeze(-1)))),
+                                 torch.tensor(1e8, device=self.device))
+
+            seq_rep = out_dict['seq_rep']
+            mask_seq = (out_dict['feed_dict']['history_items'] > 0).float()
+            reg_loss = self.regularization_rep(seq_rep, mask_seq).mean()
+
+            total_loss = ce_loss + self.loss_lambda * diffu_loss
+            return total_loss
         return torch.tensor(0.0, device=self.device)
 
 
@@ -451,7 +476,7 @@ class DiffuRec(SequentialModel, DiffuRecBase):
     extra_log_args = [
         'hidden_size', 'num_blocks', 'diffusion_steps',
         'lambda_uncertainty', 'noise_schedule', 'emb_dropout',
-        'rescale_timesteps', 'num_heads'
+        'rescale_timesteps', 'num_heads', 'loss_lambda'
     ]
 
     @staticmethod
