@@ -77,7 +77,7 @@ def main():
         data_dict[phase].prepare()
 
     # 对MISRec系模型需要构建物品间相似度矩阵
-    if 'MISRec' in init_args.model_name:
+    if 'MISRec' in init_args.model_name or 'MIFARec' in init_args.model_name:
         model.get_gram_matrix(data_dict['train'])
 
     # Run model
@@ -90,7 +90,7 @@ def main():
 
     # Evaluate final results
     eval_res = runner.print_res(data_dict['dev'])
-    logging.info(os.linesep + 'Dev  After Training: ' + eval_res)
+    logging.info(os.linesep + 'Dev After Training: ' + eval_res)
     eval_res = runner.print_res(data_dict['test'])
     logging.info(os.linesep + 'Test After Training: ' + eval_res)
 
