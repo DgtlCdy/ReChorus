@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" MIPSRec
+""" MISRec
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class MIPSRecBase(object):
+class MISRecBase(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -130,14 +130,14 @@ class MIPSRecBase(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class MIPSRec(SequentialModel, MIPSRecBase):
+class MISRec(SequentialModel, MISRecBase):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = MIPSRecBase.parse_model_args(parser)
+        parser = MISRecBase.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -186,18 +186,18 @@ class MIPSRec(SequentialModel, MIPSRecBase):
 
 
     def forward(self, feed_dict):
-        out_dict = MIPSRecBase.forward(self, feed_dict)
+        out_dict = MISRecBase.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class MIPSRecImpression(ImpressionSeqModel, MIPSRecBase):
+class MISRecImpression(ImpressionSeqModel, MISRecBase):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = MIPSRecBase.parse_model_args(parser)
+        parser = MISRecBase.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -205,4 +205,4 @@ class MIPSRecImpression(ImpressionSeqModel, MIPSRecBase):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return MIPSRecBase.forward(self, feed_dict)
+        return MISRecBase.forward(self, feed_dict)

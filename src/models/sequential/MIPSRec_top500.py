@@ -2,7 +2,7 @@
 # @Author  : Chenyang Wang
 # @Email   : THUwangcy@gmail.com
 
-""" MIPSRec_top500
+""" MISRec_top500
 Reference:
     "Self-attentive Sequential Recommendation"
     Kang et al., IEEE'2018.
@@ -20,7 +20,7 @@ from models.BaseModel import SequentialModel
 from models.BaseImpressionModel import ImpressionSeqModel
 from utils import layers
 
-class MIPSRec_top500Base(object):
+class MISRec_top500Base(object):
     @staticmethod
     def parse_model_args(parser):
         parser.add_argument('--emb_size', type=int, default=64,
@@ -130,14 +130,14 @@ class MIPSRec_top500Base(object):
         return {'prediction': prediction.view(batch_size, -1), 'kl': 0, 'u_v': u_v, 'i_v':i_v}
 
 
-class MIPSRec_top500(SequentialModel, MIPSRec_top500Base):
+class MISRec_top500(SequentialModel, MISRec_top500Base):
     reader = 'SeqReader'
     runner = 'BaseRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = MIPSRec_top500Base.parse_model_args(parser)
+        parser = MISRec_top500Base.parse_model_args(parser)
         return SequentialModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -186,18 +186,18 @@ class MIPSRec_top500(SequentialModel, MIPSRec_top500Base):
 
 
     def forward(self, feed_dict):
-        out_dict = MIPSRec_top500Base.forward(self, feed_dict)
+        out_dict = MISRec_top500Base.forward(self, feed_dict)
         # return {'prediction': out_dict['prediction']}
         return {'prediction': out_dict['prediction'], 'kl': out_dict['kl']}
     
-class MIPSRec_top500Impression(ImpressionSeqModel, MIPSRec_top500Base):
+class MISRec_top500Impression(ImpressionSeqModel, MISRec_top500Base):
     reader = 'ImpressionSeqReader'
     runner = 'ImpressionRunner'
     extra_log_args = ['emb_size', 'num_layers', 'num_heads']
 
     @staticmethod
     def parse_model_args(parser):
-        parser = MIPSRec_top500Base.parse_model_args(parser)
+        parser = MISRec_top500Base.parse_model_args(parser)
         return ImpressionSeqModel.parse_model_args(parser)
     
     def __init__(self, args, corpus):
@@ -205,4 +205,4 @@ class MIPSRec_top500Impression(ImpressionSeqModel, MIPSRec_top500Base):
         self._base_init(args, corpus)
 
     def forward(self, feed_dict):
-        return MIPSRec_top500Base.forward(self, feed_dict)
+        return MISRec_top500Base.forward(self, feed_dict)
