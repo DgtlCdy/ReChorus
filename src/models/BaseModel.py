@@ -241,7 +241,8 @@ class SequentialModel(GeneralModel):
 
     @staticmethod
     def parse_model_args(parser):
-        parser.add_argument('--history_max', type=int, default=20,
+        # parser.add_argument('--history_max', type=int, default=20,
+        parser.add_argument('--history_max', type=int, default=50,
                             help='Maximum length of history.')
         return GeneralModel.parse_model_args(parser)
 
