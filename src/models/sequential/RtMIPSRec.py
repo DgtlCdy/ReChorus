@@ -131,6 +131,7 @@ class RtMIPSRecBase(object):
         # 计算omega
         length = self.time_size
 
+
         # 计算公比r
         ratio = (last_element / first_element) ** (1 / (length - 1))
         # 生成等比数列
@@ -138,6 +139,7 @@ class RtMIPSRecBase(object):
 
         # ratio = (last_element - first_element) / length
         # period = (first_element + (ratio * torch.arange(length))).float().to(self.device)
+
         omega = (2 * torch.pi / period).to(self.device)
         # 通过傅里叶级数公式获取各频段下的相对权重alpha
         time_attenuation = period[None, None, :] / (period[None, None, :] + 0.01 * current_interval[:, :, None]) # 添加周期性损失
