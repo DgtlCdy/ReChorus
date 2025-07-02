@@ -163,27 +163,27 @@ class RtMIPSRecBase(object):
 
         # 第一步：画频谱
         # 需要按时间线性比例拉长
-        import matplotlib.pyplot as plt
-        plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
-        plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
-        fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
-        idx_session = utils.draw_frequency(period, weight_t, valid_his, u_ids[0])
-        if self.need_draw == True and idx_session != -1 and u_ids[0] == 513:
-            self.need_draw = False
-            if len(torch.unique(current_interval[idx_session])) >= 10:
-                # 第二步：画权重分布图，按时间排
-                utils.draw_weight_time(axs, idx_session, numda, current_interval)
+        # import matplotlib.pyplot as plt
+        # plt.rcParams["font.sans-serif"]=["Arial"] #设置字体
+        # plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+        # fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
+        utils.draw_frequency(period, weight_t, valid_his, u_ids[0])
+        # if self.need_draw == True and idx_session != -1 and u_ids[0] == 513:
+        #     self.need_draw = False
+        #     if len(torch.unique(current_interval[idx_session])) >= 10:
+        #         # 第二步：画权重分布图，按时间排
+        #         utils.draw_weight_time(axs, idx_session, numda, current_interval)
 
-                # 第三步：画权重分布图，按兴趣和实际物品的相似度排
-                utils.draw_weight_sim(axs, idx_session, numda, his_vectors[idx_session] @ i_vectors[idx_session, 0])
+        #         # 第三步：画权重分布图，按兴趣和实际物品的相似度排
+        #         utils.draw_weight_sim(axs, idx_session, numda, his_vectors[idx_session] @ i_vectors[idx_session, 0])
 
-                # 第四步：画时间和相似度的关联，如果很散乱没有规律那就复合预期
-                # utils.draw_weight_sim_time(idx_session, current_interval[idx_session], his_vectors[idx_session] @ i_vectors[idx_session, 0])
-                pass
-            axs[0].grid(True, linestyle='--', alpha=0.6)
-            axs[1].grid(True, linestyle='--', alpha=0.6)
-            plt.tight_layout()  # 自动调整子图间距
-            plt.savefig('5_fourier_analysis.svg', format='svg', dpi=300)
+        #         # 第四步：画时间和相似度的关联，如果很散乱没有规律那就复合预期
+        #         # utils.draw_weight_sim_time(idx_session, current_interval[idx_session], his_vectors[idx_session] @ i_vectors[idx_session, 0])
+        #         pass
+        #     axs[0].grid(True, linestyle='--', alpha=0.6)
+        #     axs[1].grid(True, linestyle='--', alpha=0.6)
+        #     plt.tight_layout()  # 自动调整子图间距
+        #     plt.savefig('5_fourier_analysis.svg', format='svg', dpi=300)
 
 
         # 输出侧，把所有的vectors放一起求内积，然后求加权匹配值

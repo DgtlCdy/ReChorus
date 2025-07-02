@@ -221,25 +221,53 @@ def draw_points_2(X_tensor, fig, axs):
 # 输入：256*20*256的数
 # 输出：每一个数，按256展开成一个频谱
 def draw_frequency(period_torch, frequency_torch, valid_torch, u_id):
-    # plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
-    # plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
-    # plt.figure(figsize=(10, 5))
+    plt.rcParams["font.sans-serif"]=["SimHei"] #设置字体
+    plt.rcParams["axes.unicode_minus"]=False #该语句解决图像中的“-”负号的乱码问题
+    plt.figure(figsize=(12, 6))
 
     frequency = frequency_torch.detach().cpu().numpy()
     valid = valid_torch.detach().cpu().numpy()
     idx = -1
-    x = list(range(1, 257))
+    x_origin = list(range(1, 257))
+    x = np.array(x_origin)
     count = 0
+
+    from scipy.interpolate import make_interp_spline
+    x_new = np.linspace(x.min(), x.max(), 2560)
+
+
+
     for i, session, valid_tag in zip(range(256), frequency, valid):
-        if valid_tag[-1] == 1 and u_id == 513:
+        if valid_tag[-1] == 1:
             for j in session:
-                # plt.plot(x, j, marker='o', linestyle='-', color='#FF6B6B')
+                y = j
+                spl = make_interp_spline(x, y, k=3)  # k=3 表示三次样条插值
+                y_smooth = spl(x_new)
+                # plt.plot(x, j, marker='o', linestyle='-')
+                plt.plot(x_new, y_smooth, linestyle='-', color='#4169E1')
                 pass
 
-            # plt.xlabel('周期的对数(对数底根据最长周期和索引数目自动确定)')
-            # plt.ylabel('频段响应权重')
+            plt.grid(True, linestyle='--', alpha=0.6)
+            plt.xlabel('周期(天)的对数(对数底根据最长周期和索引数目自动确定)')
+            plt.ylabel(r'频段的响应强度$\alpha$')
 
-            # plt.savefig('5_frequency.svg', format=svg, dpi=300)
+            plt.savefig('3_frequency.svg', format='svg', dpi=300)
+            plt.clf()
+        # if valid_tag[-1] == 1:
+        #     for j in session:
+        #         y = j
+        #         spl = make_interp_spline(x, y, k=3)  # k=3 表示三次样条插值
+        #         y_smooth = spl(x_new)
+        #         # plt.plot(x, j, marker='o', linestyle='-')
+        #         plt.plot(x_new, y_smooth, linestyle='-', color='#4169E1')
+        #         pass
+
+        #     plt.grid(True, linestyle='--', alpha=0.6)
+        #     plt.xlabel('周期(天)的对数(对数底根据最长周期和索引数目自动确定)')
+        #     plt.ylabel(r'频段的响应强度$\alpha$')
+
+        #     plt.savefig('3_frequency.svg', format='svg', dpi=300)
+        #     plt.clf()
             idx = i
             break
 
@@ -282,7 +310,7 @@ def draw_weight_sim(axs, idx_session, numda_torch, sim_data_torch):
     axs[1].scatter(result_2d[:, 0], result_2d[:, 1], edgecolors='w', s=40)
     axs[1].set_title('(b)Validation: Fourier Analysis makes better recommendation', fontweight='bold', fontsize=20, y=-0.2)
     axs[1].set_xlabel('Actual similarity between mixed-interests and positive item', fontsize=14)
-    axs[1].set_ylabel('Relative weight of mixed-interests', fontsize=14
+    axs[1].set_ylabel('Relative weight of mixed-interests', fontsize=14)
     # axs[1].savefig('5_weight_sim.png', dpi=300)
     return 0
 
